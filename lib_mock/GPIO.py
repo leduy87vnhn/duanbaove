@@ -14,21 +14,21 @@ class GPIO:
 
     @staticmethod
     def setmode(mode):
-        logger.info(f"[MOCK GPIO] setmode({mode})")
+        logger.info(f"setmode({mode})")
 
     @staticmethod
     def setwarnings(flag):
-        logger.info(f"[MOCK GPIO] setwarnings({flag})")
+        logger.info(f"setwarnings({flag})")
 
     @staticmethod
     def setup(pin, mode):
-        logger.info(f"[MOCK GPIO] setup(pin={pin}, mode={mode})")
+        logger.info(f"setup(pin={pin}, mode={mode})")
 
     @staticmethod
     def output(pin, value):
         val_str = "HIGH" if value else "LOW"
-        logger.info(f"[MOCK GPIO] output(pin={pin}, value={val_str})")
+        logger.info(f"output(pin={pin}, value={val_str})")
 
     @staticmethod
     def cleanup():
-        logger.info("[MOCK GPIO] cleanup()")
+        logger.info("cleanup()")
