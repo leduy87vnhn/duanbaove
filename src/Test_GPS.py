@@ -6,17 +6,12 @@ import json
 import sys
 import platform
 import logging
-if platform.system() != "Linux" or platform.machine() != "armv7l":
-    sys.path.insert(0, "/home/v005101/GPS_web_app")
-    from lib_mock.GPIO import GPIO as GPIO
-    import lib_mock.mock_serial as serial
-else:
-    import RPi.GPIO as GPIO
-    import serial
+import RPi.GPIO as GPIO
+import serial
 
 
 #============================ Initialize serial communication with the SIM7600X module at 115200 baud rate =======
-ser = serial.Serial('/dev/ttyS0', 115200)
+ser = serial.Serial('/dev/ttyUSB2', 115200,timeout=1)
 ser.flushInput()  										# Clear the input buffer to start fresh
 
 #============================ MQTT Configuration for ThingBoard ================================
@@ -136,7 +131,7 @@ def power_on(power_key):
     GPIO.output(power_key, GPIO.HIGH) 						 # Set the GPIO pin HIGH (turn on power)
     time.sleep(2) 											 # Wait for 2 seconds to let the SIM7600X power up
     GPIO.output(power_key, GPIO.LOW) 						 # Set the GPIO pin LOW (turn off power)
-    time.sleep(5) 											 # Wait for 5 seconds to allow the SIM7600X to initialize
+    time.sleep(20) 											 # Wait for 5 seconds to allow the SIM7600X to initialize
     ser.flushInput() 										 # Clear the serial input buffer
     logger.info('SIM7600X is ready') 						 # Print the ready message
 
@@ -173,10 +168,14 @@ def main():
         if ser != None: 										 # If serial is initialized, close it
             ser.close()
         power_down(power_key) 									 # Ensure the SIM7600X is powered down
-        GPIO.cleanup() 											 # Clean up the GPIO pins
+        GPIO.cleanup()                                           # Clean up the GPIO pins
     if ser != None:
         ser.close() 											 # Close the serial connection
         GPIO.cleanup() 											 # Clean up GPIO settings
 
 if __name__ == '__main__':
-    main() 													     # Run the main function
+    try:
+        main() 													     # Run the main function
+    except KeyboardInterrupt:
+        logger.info("Stop program!")
+        power_down(power_key)

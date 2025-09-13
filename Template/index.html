@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live GPS Tracking (Vietnam TitleMap)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <style>
+        body { margin:0; padding:0; }
+        #map { width: 100vw; height: 100vh; }
+        .leaflet-popup-content { font-size: 1.1em; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Khởi tạo map với TitleMap API
+        var map = L.map('map').setView([21.028511, 105.804817], 13); // Mặc định Hà Nội
+
+        // Lớp nền TitleMap (bạn thay key của bạn vào chỗ KEY_API)
+        var titlemap = L.tileLayer(
+            'https://api.titilemap.vn/v1/tiles/{z}/{x}/{y}?apikey=2eada1a08ba9a656491f1e14cc0224ee5ea4d611c8adae41',
+            {
+                attribution: '© TitleMap.vn',
+                maxZoom: 18
+            }
+        ).addTo(map);
+
+        // Khởi tạo marker (chưa biết vị trí)
+        var marker = null;
+
+        // Kết nối đến server socketio
+        var socket = io();
+
+        socket.on('gps_update', function(data) {
+            var lat = data.lat;
+            var lon = data.lon;
+
+            // Nếu lần đầu thì tạo marker, lần sau chỉ cần setLatLng
+            if (!marker) {
+                marker = L.marker([lat, lon]).addTo(map)
+                    .bindPopup('Vị trí hiện tại').openPopup();
+                map.setView([lat, lon], 16);
+            } else {
+                marker.setLatLng([lat, lon]);
+                map.setView([lat, lon], 16); // Option: Zoom theo marker
+            }
+        });
+    </script>
+</body>
+</html>

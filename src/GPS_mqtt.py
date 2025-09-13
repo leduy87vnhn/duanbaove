@@ -5,27 +5,47 @@ import paho.mqtt.client as mqtt  						# Import paho.mqtt for MQTT communication
 import json  
 import sys
 import platform
-  
-if platform.system() != "Linux" or platform.machine() != "armv7l":
-    sys.path.insert(0, "/home/v005101/GPS_web_app")
-    from lib_mock.GPIO import GPIO as GPIO
-    import lib_mock.mock_serial as serial
-else:
-    import RPi.GPIO as GPIO
-    import serial
+import logging
+import RPi.GPIO as GPIO
+import serial
+
 
 #============================ Initialize serial communication with the SIM7600X module at 115200 baud rate =======
-ser = serial.Serial('/dev/ttyS0', 115200)
+ser = serial.Serial('/dev/ttyUSB2', 115200,timeout=0.5)
 ser.flushInput()  										# Clear the input buffer to start fresh
+
+# ========== MQTT CALLBACKS ===========
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info("Connected to ThingsBoard MQTT successfull!")
+        client.connected_flag = True
+    else:
+        logger.error(f"Fail to connect MQTT! Mã lỗi: {rc}")
+        client.connected_flag = False
+
+def on_disconnect(client, userdata, rc):
+    logger.warning("Disconnect to MQTT! (rc={})".format(rc))
+    client.connected_flag = False
 
 #============================ MQTT Configuration for ThingBoard ================================
 THINGSBOARD_HOST = "demo.thingsboard.io"  # e.g., "demo.thingsboard.io"
 ACCESS_TOKEN = "tGZ5ZOcgP64j10xGLaVB"  # Replace with your actual device access token
-
 # MQTT Setup
+mqtt.Client.connected_flag = False
 client = mqtt.Client()
-client.username_pw_set(ACCESS_TOKEN)  # Set the access token for authentication
-client.connect(THINGSBOARD_HOST, 1883, 60)  # Connect to ThingBoard MQTT broker
+client.on_connect = on_connect
+client.on_disconnect = on_disconnect
+client.username_pw_set(ACCESS_TOKEN)
+client.connect(THINGSBOARD_HOST, 1883, 60)
+client.loop_start()
+# =========================
+# Logging setup
+# =========================
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s][%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 #============================ GPIO pin number for controlling power to the SIM7600X module =======================
 power_key = 6
@@ -47,27 +67,27 @@ def send_at(command, back, timeout):
     if rec_buff != '':
         # Check if the expected response ('back') is in the received data
         if back not in rec_buff.decode():
-            print(command + ' ERROR')  						 # Print error if response doesn't match
-            print(command + ' back:\t' + rec_buff.decode())  # Print the actual response
-            return 0,"Null"  										 # Return 0 to indicate error
+            logger.warning(f"Command'{command}' ERROR\n")  						 # Print error if response doesn't match
+            logger.warning(f"Command'{command}' back:\t{rec_buff.decode()}")
+            return 0,"Null"  										             # Return 0 to indicate error
         else:
-            print(rec_buff.decode())  						 # Print the received response
+            logger.info(f"AT Response: {rec_buff.decode()}")  					 # Print the received response
             return 1,rec_buff.decode()  										 # Return 1 to indicate success
     else:
-        print('[LOGIFO]: GPS is not ready')  							 # Print error if no response was received
-        return 0  											 # Return 0 to indicate error
+        logger.warning("GPS is not ready")  							         # Print error if no response was received
+        return 0,"Null"  											             # Return 0 to indicate error
 
 # Function to get the GPS position
 def get_gps_position():
     rec_null = True  										 # Initialize the flag indicating whether GPS data is ready
     answer = 0 												 # Initialize the answer flag
-    print('Start GPS session...') 							 # Print starting message
+    logger.info('Start GPS session...') 					 # Print starting message
     rec_buff = '' 											 # Clear the response buffer
 
     # Send command to enable GPS
     send_at('AT+CGPS=1,1', 'OK', 1)
     if not send_at('AT+CGPS=1,1', 'OK', 1):
-        print("[LOGIFO]: Failed to enable GPS")
+        logger.error("Failed to enable GPS")
         return False
     time.sleep(2) 											 # Wait for 2 seconds to allow GPS module to initialize
 
@@ -78,7 +98,7 @@ def get_gps_position():
             answer = 0
             # If the GPS info contains only commas, it means GPS data is not ready
             if ',,,,,,' in rec_buff:
-                print('[LOGIFO]: GPS is not ready')
+                logger.warning('GPS is not ready')
                 rec_null = False 							 # Stop waiting if GPS data is not available
                 time.sleep(1) 								 # Wait for a second before retrying
             if ":" in data:
@@ -100,14 +120,14 @@ def get_gps_position():
                     if lon_direction == 'W':
                         longtitude_degrees_decimal = -longtitude_degrees_decimal
                     
-                    print(f"[LOGIFO]: Latitude_{latitude_degrees_decimal}, Longitude_{longtitude_degrees_decimal}")
+                    logger.info(f"Latitude:{latitude_degrees_decimal}, Longitude:{longtitude_degrees_decimal}")
                     
                     # push data to thingsboard
                     publish_to_thingboard(latitude_degrees_decimal, longtitude_degrees_decimal)
                 else:
-                    print('[LOGIFO]: GPS data is incomplete')
+                    logger.info('GPS data is incomplete')
         else:
-            print('[LOGIFO]: error %d' % answer) 						 # Print error message if AT command fails
+            logger.error('error %d' % answer) 				 # Print error message if AT command fails
             rec_buff = '' 									 # Clear the response buffer
             send_at('AT+CGPS=0', 'OK', 1) 					 # Disable GPS session
             return False 									 # Return False if there is an error
@@ -116,7 +136,7 @@ def get_gps_position():
 
 #========================= Function to power on the SIM7600X module ====================================
 def power_on(power_key):
-    print('[LOGIFO]: SIM7600X is starting:') 							 # Print the power-on message
+    logger.info('SIM7600X is starting:') 					 # Print the power-on message
 
     GPIO.setmode(GPIO.BCM) 									 # Set the GPIO pin numbering mode to BCM
     GPIO.setwarnings(False) 								 # Disable GPIO warnings (optional)
@@ -126,30 +146,40 @@ def power_on(power_key):
     GPIO.output(power_key, GPIO.HIGH) 						 # Set the GPIO pin HIGH (turn on power)
     time.sleep(2) 											 # Wait for 2 seconds to let the SIM7600X power up
     GPIO.output(power_key, GPIO.LOW) 						 # Set the GPIO pin LOW (turn off power)
-    time.sleep(5) 											 # Wait for 5 seconds to allow the SIM7600X to initialize
+    time.sleep(20) 											 # Wait for 5 seconds to allow the SIM7600X to initialize
     ser.flushInput() 										 # Clear the serial input buffer
-    print('[LOGIFO]: SIM7600X is ready') 								 # Print the ready message
+    logger.info('SIM7600X is ready') 						 # Print the ready message
 
 #========================= Function to power down the SIM7600X module ====================================
 def power_down(power_key):
-    print('[LOGIFO]: SIM7600X is logging off:') 						 # Print the power-down message
+    logger.info('SIM7600X is logging off:') 				 # Print the power-down message
     GPIO.output(power_key, GPIO.HIGH) 						 # Set the power_key GPIO pin HIGH (turn on power)
     time.sleep(3) 											 # Wait for 3 seconds
     GPIO.output(power_key, GPIO.LOW) 						 # Set the power_key GPIO pin LOW (turn off power)
     time.sleep(18) 											 # Wait for 18 seconds before completely powering down
-    print('[LOGIFO]: Good bye') 										 # Print the shutdown message
+    logger.info('Good bye!') 								 # Print the shutdown message
 
 #========================= Function to publish data to ThingBoard ===============================
+# def publish_to_thingboard(latitude, longitude):
+#     # Construct the JSON payload with GPS data
+#     payload = {
+#         "gps_latitude": latitude,
+#         "gps_longitude": longitude
+#     }
+    
+#     # Publish the data to ThingBoard
+#     client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
+#     logger.info("Data sent to ThingBoard successfull!")
 def publish_to_thingboard(latitude, longitude):
-    # Construct the JSON payload with GPS data
     payload = {
         "gps_latitude": latitude,
         "gps_longitude": longitude
     }
-    
-    # Publish the data to ThingBoard
-    client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
-    print("[LOGIFO]: Data sent to ThingBoard successfull!")
+    if getattr(client, "connected_flag", False):
+        client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
+        logger.info("Data sent to ThingBoard successfully!")
+    else:
+        logger.error("NO DATA TO SEND: Not connect to ThingsBoard!")
 
 #========================= Main program execution ====================================
 
@@ -159,14 +189,18 @@ def main():
         get_gps_position()
         power_down(power_key) 									 # Power down the SIM7600X
     except Exception as e: 										 # If there is an exception (error) during execution
-        print(f"Error: {e}") 									 # Print the error message
+        logger.error(f"Error: {e}") 							 # Print the error message
         if ser != None: 										 # If serial is initialized, close it
             ser.close()
         power_down(power_key) 									 # Ensure the SIM7600X is powered down
-        GPIO.cleanup() 											 # Clean up the GPIO pins
+        GPIO.cleanup()                                           # Clean up the GPIO pins
     if ser != None:
         ser.close() 											 # Close the serial connection
         GPIO.cleanup() 											 # Clean up GPIO settings
 
 if __name__ == '__main__':
-    main() 													     # Run the main function
+    try:
+        main() 													     # Run the main function
+    except KeyboardInterrupt:
+        logger.info("Stop program!")
+        power_down(power_key)
