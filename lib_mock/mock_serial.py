@@ -26,18 +26,26 @@ class Serial:
         if b"AT+CGPS=1,1" in data:
             self._buffer = b"OK\r\n"
         elif b"AT+CGPSINFO" in data:
-            # Sinh tọa độ GPS ngẫu nhiên quanh VN
-            lat_deg = random.randint(10, 22)
-            lat_min = random.uniform(0, 59.999999)
+            # --- Đặt gốc quanh Hà Nội ---
+            lat_goc = 21.028511
+            lon_goc = 105.804817
+            # Mỗi lần random dịch chuyển rất nhỏ: (-0.0005 đến +0.0005)
+            lat = lat_goc + random.uniform(-0.0005, 0.0005)
+            lon = lon_goc + random.uniform(-0.0005, 0.0005)
+
+            # Convert sang định dạng xxYY.YYY (deg, minute)
+            lat_deg = int(lat)
+            lat_min = (lat - lat_deg) * 60
             lat_str = f"{lat_deg:02d}{lat_min:06.3f}"
 
-            lon_deg = random.randint(104, 108)
-            lon_min = random.uniform(0, 59.999999)
+            lon_deg = int(lon)
+            lon_min = (lon - lon_deg) * 60
             lon_str = f"{lon_deg:03d}{lon_min:06.3f}"
 
-            rest = "110925,172254.0,42.7,0.0"
+            rest = "110925,172254.0,0.5,0.0"  # tốc độ thấp, giống xe di chuyển chậm
             self._buffer = bytes(f"+CGPSINFO: {lat_str},N,{lon_str},E,{rest}\r\n", "ascii")
         return len(data)
+
 
     def inWaiting(self):
         return len(self._buffer)
