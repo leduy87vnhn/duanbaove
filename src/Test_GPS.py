@@ -6,23 +6,43 @@ import json
 import sys
 import platform
 import logging
-import RPi.GPIO as GPIO
-import serial
 
+if platform.system() == 'Linux':
+    sys.path.insert(0, '/home/v005101/GPS_web_app')
+    from lib_mock.GPIO import GPIO as GPIO
+    import lib_mock.mock_serial as serial
+else:
+    import RPi.GPIO as GPIO
+    import serial
 
 #============================ Initialize serial communication with the SIM7600X module at 115200 baud rate =======
-ser = serial.Serial('/dev/ttyUSB2', 115200,timeout=1)
+ser = serial.Serial('/dev/ttyUSB2', 115200,timeout=0.5)
 ser.flushInput()  										# Clear the input buffer to start fresh
+
+# ========== MQTT CALLBACKS ===========
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info("Connected to ThingsBoard MQTT successfull!")
+        client.connected_flag = True
+    else:
+        logger.error(f"Fail to connect MQTT! Mã lỗi: {rc}")
+        client.connected_flag = False
+
+def on_disconnect(client, userdata, rc):
+    logger.warning("Disconnect to MQTT! (rc={})".format(rc))
+    client.connected_flag = False
 
 #============================ MQTT Configuration for ThingBoard ================================
 THINGSBOARD_HOST = "demo.thingsboard.io"  # e.g., "demo.thingsboard.io"
 ACCESS_TOKEN = "tGZ5ZOcgP64j10xGLaVB"  # Replace with your actual device access token
-
 # MQTT Setup
+mqtt.Client.connected_flag = False
 client = mqtt.Client()
-client.username_pw_set(ACCESS_TOKEN)  # Set the access token for authentication
-client.connect(THINGSBOARD_HOST, 1883, 60)  # Connect to ThingBoard MQTT broker
-
+client.on_connect = on_connect
+client.on_disconnect = on_disconnect
+client.username_pw_set(ACCESS_TOKEN)
+client.connect(THINGSBOARD_HOST, 1883, 60)
+client.loop_start()
 # =========================
 # Logging setup
 # =========================
@@ -116,7 +136,7 @@ def get_gps_position():
             rec_buff = '' 									 # Clear the response buffer
             send_at('AT+CGPS=0', 'OK', 1) 					 # Disable GPS session
             return False 									 # Return False if there is an error
-        time.sleep(1) 									     # Wait before trying again
+        time.sleep(0.5) 									     # Wait before trying again
 
 
 #========================= Function to power on the SIM7600X module ====================================
@@ -145,16 +165,26 @@ def power_down(power_key):
     logger.info('Good bye!') 								 # Print the shutdown message
 
 #========================= Function to publish data to ThingBoard ===============================
+# def publish_to_thingboard(latitude, longitude):
+#     # Construct the JSON payload with GPS data
+#     payload = {
+#         "gps_latitude": latitude,
+#         "gps_longitude": longitude
+#     }
+    
+#     # Publish the data to ThingBoard
+#     client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
+#     logger.info("Data sent to ThingBoard successfull!")
 def publish_to_thingboard(latitude, longitude):
-    # Construct the JSON payload with GPS data
     payload = {
         "gps_latitude": latitude,
         "gps_longitude": longitude
     }
-    
-    # Publish the data to ThingBoard
-    client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
-    logger.info("Data sent to ThingBoard successfull!")
+    if getattr(client, "connected_flag", False):
+        client.publish("v1/devices/me/telemetry", json.dumps(payload), qos=1)
+        logger.info("Data sent to ThingBoard successfully!")
+    else:
+        logger.error("NO DATA TO SEND: Not connect to ThingsBoard!")
 
 #========================= Main program execution ====================================
 
