@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>VietMap Tilemap Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Nhúng Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    #map {
+      height: 90vh;      /* chiều cao map */
+      width: 100vw;      /* full rộng */
+      margin: 0;
+      padding: 0;
+    }
+    body { margin:0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <!-- Nhúng Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Thay bằng apikey của bạn ở đây
+    const vietmapApiKey = "2eada1a08ba9a656491f1e14cc0224ee5ea4d611c8adae41";
+
+    // URL Raster tiles (Default)
+    const vietmapTileUrl = `https://maps.vietmap.vn/maps/tiles/tm/{z}/{x}/{y}@2x.png?apikey=${vietmapApiKey}`;
+
+    // Khởi tạo bản đồ Leaflet
+    const map = L.map('map').setView([21.0285, 105.8542], 12); // Tọa độ Hà Nội, zoom 12
+
+    // Thêm layer VietMap vào bản đồ
+    L.tileLayer(vietmapTileUrl, {
+      maxZoom: 20,        // Zoom tối đa VietMap hỗ trợ
+      minZoom: 1,
+      attribution: '© <a href="https://vietmap.vn/">VietMap</a>'
+    }).addTo(map);
+  </script>
+</body>
+</html>

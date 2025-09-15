@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live GPS Tracking (VietMap)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Leaflet CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        html, body {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: 'Inter', Arial, sans-serif;
+            background: #f5f7fb;
+        }
+        #map {
+            width: 100vw; height: 100vh;
+        }
+        .leaflet-popup-content { font-size: 1.1em; }
+        .floating-group {
+            position: fixed; left: 22px; top: 20px; z-index: 1001;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        .status-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.99);
+            padding: 10px 22px;
+            border-radius: 15px;
+            box-shadow: 0 2px 12px #0002;
+            font-size: 1.04em;
+            font-weight: 500;
+            min-width: 240px;
+            transition: box-shadow 0.18s, border 0.18s;
+            border: 1.2px solid #e9e9ee;
+        }
+        .status-icon {
+            font-size: 1.21em;
+        }
+        .connected .status-icon { color: #16a085; }
+        .disconnected .status-icon { color: #e74c3c; }
+        .status-box#coords .status-icon { color: #0072bb; }
+        .status-box#last-update .status-icon { color: #f4a300; }
+        .control-btn {
+            border:none; outline:none;
+            border-radius:15px;
+            padding:11px 22px;
+            font-size:1em;
+            background:#3175c3;
+            color:#fff;
+            cursor:pointer;
+            margin-bottom:0;
+            box-shadow: 0 2px 12px #0001;
+            transition: background 0.18s, box-shadow 0.18s;
+            font-weight:500;
+        }
+        .control-btn:hover, .control-btn:focus {
+            background: #185fa4;
+            box-shadow: 0 4px 18px #0002;
+        }
+        .control-btn.active, .control-btn:active {
+            background: #11c882 !important;
+            color: #fff;
+        }
+        /* Logo VietMap nhỏ dưới góc phải */
+        .vietmap-logo {
+            position: fixed;
+            bottom: 18px; right: 22px;
+            z-index: 1002;
+            opacity: 0.77;
+        }
+        .vietmap-logo img { height:36px; }
+        /* Responsive: mobile nhỏ lại 1 chút */
+        @media (max-width:600px) {
+            .floating-group { left: 7px; top: 8px; gap: 10px; }
+            .status-box, .control-btn { min-width: 145px; padding:7px 12px; font-size:0.98em;}
+            .vietmap-logo img { height:28px;}
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating status & controls group -->
+    <div class="floating-group">
+        <div id="status" class="status-box connected">
+            <span class="status-icon">&#9989;</span>
+            <span id="status-text">Connecting...</span>
+        </div>
+        <div id="last-update" class="status-box">
+            <span class="status-icon">&#128337;</span>
+            <span id="update-text">Latest update: No data</span>
+        </div>
+        <div id="coords" class="status-box">
+            <span class="status-icon">&#128205;</span>
+            <span id="coords-text">Lat: --- , Lon: ---</span>
+        </div>
+        <button id="clear-history" class="control-btn">🗑️Clear history</button>
+        <button id="follow-marker" class="control-btn active">📍Update current position</button>
+    </div>
+    <!-- Map -->
+    <div id="map"></div>
+    <!-- Logo VietMap -->
+    <div class="vietmap-logo">
+        <img src="https://maps.vietmap.vn/images/logo_vietmap.png" alt="VietMap Logo"/>
+    </div>
+
+    <script>
+        // Khởi tạo map VietMap (API key của bạn)
+        var vietmapApiKey = "2eada1a08ba9a656491f1e14cc0224ee5ea4d611c8adae41";
+        var map = L.map('map').setView([21.028511, 105.804817], 13);
+
+        var tileLayer = L.tileLayer(
+            `https://maps.vietmap.vn/maps/tiles/tm/{z}/{x}/{y}@2x.png?apikey=${vietmapApiKey}`,
+            { attribution: '© VietMap.vn', maxZoom: 18 }
+        ).addTo(map);
+
+        var xeIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/252/252025.png',
+            iconSize: [44, 44],
+            iconAnchor: [22, 44],
+            popupAnchor: [0, -32]
+        });
+
+        var marker = null;
+        var latlngs = [];
+        var polyline = null;
+        var autoFollow = true;
+
+        // Các div trạng thái
+        var statusDiv = document.getElementById('status');
+        var statusText = document.getElementById('status-text');
+        var lastUpdateDiv = document.getElementById('last-update');
+        var updateText = document.getElementById('update-text');
+        var coordsDiv = document.getElementById('coords');
+        var coordsText = document.getElementById('coords-text');
+
+        // SocketIO
+        var socket = io();
+
+        socket.on('connect', function(){
+            statusDiv.classList.add("connected");
+            statusDiv.classList.remove("disconnected");
+            statusText.innerHTML = "Connected to Server";
+        });
+        socket.on('disconnect', function(){
+            statusDiv.classList.remove("connected");
+            statusDiv.classList.add("disconnected");
+            statusText.innerHTML = "Disconnect to Server!";
+        });
+
+        socket.on('gps_update', function(data){
+            var lat = data.lat, lon = data.lon;
+
+            // Cập nhật marker
+            if (!marker) {
+                marker = L.marker([lat, lon], {icon: xeIcon}).addTo(map)
+                    .bindPopup('Current Location').openPopup();
+                if (autoFollow) map.setView([lat, lon], 16);
+            } else {
+                marker.setLatLng([lat, lon]);
+                if (autoFollow) map.setView([lat, lon], 16);
+            }
+
+            // Lưu lịch sử, vẽ polyline
+            latlngs.push([lat, lon]);
+            if (polyline) {
+                polyline.setLatLngs(latlngs);
+            } else {
+                polyline = L.polyline(latlngs, {color: '#3175c3', weight: 4}).addTo(map);
+            }
+
+            // Update trạng thái
+            var now = new Date();
+            var strTime = now.toLocaleString('vi-VN');
+            updateText.innerText = "Latest Updated: " + strTime;
+            coordsText.innerText = `Lat: ${lat} | Lon: ${lon}`;
+        });
+
+        // Xoá lịch sử đường đi
+        document.getElementById('clear-history').onclick = function() {
+            latlngs = [];
+            if(polyline) polyline.setLatLngs([]);
+        };
+
+        // Chế độ tự động theo marker
+        var followBtn = document.getElementById('follow-marker');
+        followBtn.onclick = function() {
+            autoFollow = true;
+            followBtn.classList.add("active");
+            if (marker) map.setView(marker.getLatLng(), 16);
+        };
+        // Nếu kéo/thao tác map thì tắt autoFollow
+        map.on('movestart', function() {
+            autoFollow = false;
+            followBtn.classList.remove("active");
+        });
+    </script>
+</body>
+</html>
