@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <title>Live GPS Tracking (VietMap)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <!-- Leaflet CDN -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Socket.IO CDN -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         html, body {
@@ -67,7 +64,6 @@
             background: #11c882 !important;
             color: #fff;
         }
-        /* Logo VietMap nhỏ dưới góc phải */
         .vietmap-logo {
             position: fixed;
             bottom: 18px; right: 22px;
@@ -75,11 +71,50 @@
             opacity: 0.77;
         }
         .vietmap-logo img { height:36px; }
-        /* Responsive: mobile nhỏ lại 1 chút */
         @media (max-width:600px) {
             .floating-group { left: 7px; top: 8px; gap: 10px; }
             .status-box, .control-btn { min-width: 145px; padding:7px 12px; font-size:0.98em;}
             .vietmap-logo img { height:28px;}
+        }
+        #webrtc-modal {
+            display:none; position:fixed; inset:0; background:#0009; z-index:3000;
+            align-items:center; justify-content:center;
+        }
+        .modal-content {
+            background:#fff; 
+            border-radius:12px; 
+            width:min(92vw, 960px); 
+            padding:10px;
+            max-height: 90vh;
+            overflow: auto;
+        }
+        .modal-header {
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center; 
+            gap:12px; 
+            margin-bottom:8px;
+        }
+        .video-container {
+            width:100%; 
+            aspect-ratio:16/9; 
+            background:#000;
+            position: relative;
+        }
+        #wrtc-canvas {
+            width:100%; 
+            height:100%; 
+            display:block;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2em;
         }
     </style>
 </head>
@@ -98,8 +133,8 @@
             <span class="status-icon">&#128205;</span>
             <span id="coords-text">Lat: --- , Lon: ---</span>
         </div>
-        <button id="clear-history" class="control-btn">🗑️Clear history</button>
-        <button id="follow-marker" class="control-btn active">📍Update current position</button>
+        <button id="clear-history" class="control-btn">Clear history</button>
+        <button id="follow-marker" class="control-btn active">Update current position</button>
     </div>
     <!-- Map -->
     <div id="map"></div>
@@ -108,8 +143,39 @@
         <img src="https://maps.vietmap.vn/images/logo_vietmap.png" alt="VietMap Logo"/>
     </div>
 
+    <!-- Modal WebRTC (canvas) -->
+    <div id="webrtc-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 style="margin:8px 0;">Live Camera 📹</h3>
+          <button id="close-wrtc" class="control-btn" style="background:#e74c3c;">✖ Đóng</button>
+        </div>
+        <div class="video-container">
+          <canvas id="wrtc-canvas"></canvas>
+          <div id="loading-overlay" class="loading-overlay">
+            Đang tải camera...
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
-        // Khởi tạo map VietMap (API key của bạn)
+        const RELAY_HOST = window.location.hostname;
+        const RELAY_PORT = '9000';
+        const scriptSrc = `${window.location.protocol}//${RELAY_HOST}:${RELAY_PORT}/static/rtsp-relay.js`;
+        const script = document.createElement('script');
+        script.src = scriptSrc;
+        script.onerror = function() {
+            console.error('Not download rtsp-relay.js from:', scriptSrc);
+            alert('Error: Disconnect to server camera. Checking:\n1. Server Node.js is running?\n2. Port 9000 is openning?\n3. IP/hostname is correct?');
+        };
+        document.head.appendChild(script);
+        window.loadPlayer = window.loadPlayer || function(){ 
+            alert("Error: Don't load to rtsp-relay.js. Server camera not run!"); 
+        };
+    </script>
+    
+    <script>
         var vietmapApiKey = "2eada1a08ba9a656491f1e14cc0224ee5ea4d611c8adae41";
         var map = L.map('map').setView([21.028511, 105.804817], 13);
 
@@ -129,43 +195,125 @@
         var latlngs = [];
         var polyline = null;
         var autoFollow = true;
-
-        // Các div trạng thái
         var statusDiv = document.getElementById('status');
         var statusText = document.getElementById('status-text');
         var lastUpdateDiv = document.getElementById('last-update');
         var updateText = document.getElementById('update-text');
         var coordsDiv = document.getElementById('coords');
         var coordsText = document.getElementById('coords-text');
-
-        // SocketIO
-        var socket = io();
+        var socket = io(`${window.location.protocol}//${RELAY_HOST}:5000`);
 
         socket.on('connect', function(){
             statusDiv.classList.add("connected");
             statusDiv.classList.remove("disconnected");
             statusText.innerHTML = "Connected to Server";
+            console.log('Connected to Flask Socket.IO');
         });
+        
         socket.on('disconnect', function(){
             statusDiv.classList.remove("connected");
             statusDiv.classList.add("disconnected");
             statusText.innerHTML = "Disconnect to Server!";
+            console.log('Disconnected from Flask Socket.IO');
         });
+
+        socket.on('connect_error', function(error){
+            console.error('Socket.IO connection error:', error);
+            statusDiv.classList.remove("connected");
+            statusDiv.classList.add("disconnected");
+            statusText.innerHTML = "Connection Error!";
+        });
+
+        const wrtcModal  = document.getElementById('webrtc-modal');
+        const wrtcCanvas = document.getElementById('wrtc-canvas');
+        const wrtcClose  = document.getElementById('close-wrtc');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        let wrtcPlayer = null;
+
+        function openWebRTC(camId) {
+            console.log('Opening WebRTC for camera:', camId);
+            
+            if (wrtcPlayer && wrtcPlayer.destroy) {
+                try { 
+                    wrtcPlayer.destroy(); 
+                    console.log('Previous player destroyed');
+                } catch(e) {
+                    console.error('Error destroying player:', e);
+                }
+            }
+            wrtcPlayer = null;
+            wrtcModal.style.display = 'flex';
+            loadingOverlay.style.display = 'flex';
+
+            if (typeof window.loadPlayer !== 'function') {
+                loadingOverlay.innerHTML = 'Error: Server camera not ready';
+                console.error('loadPlayer function not available');
+                return;
+            }
+
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const url = `${wsProtocol}${RELAY_HOST}:${RELAY_PORT}/api/stream/${camId}`;
+            
+            console.log('Connecting to:', url);
+
+            try {
+                wrtcPlayer = loadPlayer({ 
+                    url: url, 
+                    canvas: wrtcCanvas, 
+                    audio: false,
+                    onDisconnect: () => {
+                        console.log('WebRTC disconnected');
+                        loadingOverlay.style.display = 'flex';
+                        loadingOverlay.innerHTML = 'Disconnect to camera ';
+                    }
+                });
+                
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 2000);
+                
+            } catch(e) {
+                console.error('Error loading player:', e);
+                loadingOverlay.innerHTML = 'Error connecting: ' + e.message;
+            }
+        }
+
+        wrtcClose.onclick = () => {
+            console.log('Closing WebRTC modal');
+            if (wrtcPlayer && wrtcPlayer.destroy) {
+                try { 
+                    wrtcPlayer.destroy(); 
+                } catch(e) {
+                    console.error('Error destroying player:', e);
+                }
+            }
+            wrtcModal.style.display = 'none';
+            loadingOverlay.style.display = 'flex';
+            loadingOverlay.innerHTML = 'Loading camera...';
+        };
+
+        function bindMarkerForCamera(marker, camId) {
+            marker.on('click', () => {
+                console.log('Marker clicked, opening camera:', camId);
+                openWebRTC(camId);
+            });
+        }
 
         socket.on('gps_update', function(data){
             var lat = data.lat, lon = data.lon;
+            console.log('GPS Update:', lat, lon);
 
-            // Cập nhật marker
             if (!marker) {
                 marker = L.marker([lat, lon], {icon: xeIcon}).addTo(map)
-                    .bindPopup('Current Location').openPopup();
+                    .bindPopup('📍 Current location<br><small>Click to live camera </small>')
+                    .openPopup();
+                bindMarkerForCamera(marker, 'cam1');
                 if (autoFollow) map.setView([lat, lon], 16);
             } else {
                 marker.setLatLng([lat, lon]);
                 if (autoFollow) map.setView([lat, lon], 16);
             }
 
-            // Lưu lịch sử, vẽ polyline
             latlngs.push([lat, lon]);
             if (polyline) {
                 polyline.setLatLngs(latlngs);
@@ -173,30 +321,36 @@
                 polyline = L.polyline(latlngs, {color: '#3175c3', weight: 4}).addTo(map);
             }
 
-            // Update trạng thái
             var now = new Date();
             var strTime = now.toLocaleString('vi-VN');
             updateText.innerText = "Latest Updated: " + strTime;
-            coordsText.innerText = `Lat: ${lat} | Lon: ${lon}`;
+            coordsText.innerText = `Lat: ${lat.toFixed(6)} | Lon: ${lon.toFixed(6)}`;
         });
 
-        // Xoá lịch sử đường đi
         document.getElementById('clear-history').onclick = function() {
             latlngs = [];
             if(polyline) polyline.setLatLngs([]);
+            console.log('History cleared');
         };
 
-        // Chế độ tự động theo marker
         var followBtn = document.getElementById('follow-marker');
         followBtn.onclick = function() {
             autoFollow = true;
             followBtn.classList.add("active");
             if (marker) map.setView(marker.getLatLng(), 16);
+            console.log('Auto-follow enabled');
         };
-        // Nếu kéo/thao tác map thì tắt autoFollow
+        
         map.on('movestart', function() {
             autoFollow = false;
             followBtn.classList.remove("active");
+        });
+
+        window.addEventListener('load', function() {
+            console.log('=== GPS Tracking Page Loaded ===');
+            console.log('Flask Server:', `${window.location.protocol}//${RELAY_HOST}:5000`);
+            console.log('Camera Server:', `${window.location.protocol}//${RELAY_HOST}:${RELAY_PORT}`);
+            console.log('rtsp-relay.js:', scriptSrc);
         });
     </script>
 </body>

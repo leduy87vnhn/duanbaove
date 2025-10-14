@@ -8,7 +8,7 @@ import logging
 
 # ---- Cấu hình ----
 class Config:
-    THINGSBOARD_TOKEN = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ2dmFuaDIxMDIwM0BnbWFpbC5jb20iLCJ1c2VySWQiOiJiNWVmYjdmMC00YTJmLTExZjAtOTY2NC1mZjEzZWNjYjQ3ZmYiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6IjkwZTAxMTI1LWM2NDctNDA1Yy05YTU2LWU1NTJmZmUwMGYzNCIsImV4cCI6MTc1OTQxNTA5NCwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3NTc2MTUwOTQsImZpcnN0TmFtZSI6IkFuaCIsImxhc3ROYW1lIjoiVsWpIiwiZW5hYmxlZCI6dHJ1ZSwicHJpdmFjeVBvbGljeUFjY2VwdGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiYjVjMzUwYzAtNGEyZi0xMWYwLTk2NjQtZmYxM2VjY2I0N2ZmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.IrlMdnECiX2KtxGeOP0j5EcpuBj3A5o2NPFlXwKxOi0WpWAIHF-8qAeSdzERXiD0wgp5DP4NmiX6PGAd6EGTRQ'
+    THINGSBOARD_TOKEN = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ2dmFuaDIxMDIwM0BnbWFpbC5jb20iLCJ1c2VySWQiOiJiNWVmYjdmMC00YTJmLTExZjAtOTY2NC1mZjEzZWNjYjQ3ZmYiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6ImNmNmRhYTU0LTQzNGUtNDgzMC1hYjgyLTY5NjFjNmU2NzI1MSIsImV4cCI6MTc2MjE3ODQ4NCwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3NjAzNzg0ODQsImZpcnN0TmFtZSI6IkFuaCIsImxhc3ROYW1lIjoiVsWpIiwiZW5hYmxlZCI6dHJ1ZSwicHJpdmFjeVBvbGljeUFjY2VwdGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiYjVjMzUwYzAtNGEyZi0xMWYwLTk2NjQtZmYxM2VjY2I0N2ZmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.V1UF2qYI9R_ucDtcZglRcybLdbGKDhCkH_nQrduisaqJwWM-048TLvew9QgYV58dk5RCv7_1lxE8WeFfJnik3g'
     DEVICE_ID = 'afe86c60-8f3c-11f0-a9b5-792e2194a5d4'  
     SOCKETIO_PORT = 5000
 
@@ -55,10 +55,9 @@ def thingsboard_ws_thread():
     def on_close(ws, close_status_code, close_msg):
         logging.warning(f"WebSocket closed: code={close_status_code}, msg={close_msg}. Reconnecting in 5s...")
         time.sleep(5)
-        start_ws()  # Tự động reconnect
+        start_ws()  
 
     def on_open(ws):
-        # Gửi lệnh subcribe telemetry
         sub_cmd = {
             "tsSubCmds": [
                 {
@@ -91,7 +90,5 @@ def index():
     return render_template('index.html')
 
 if __name__ == "__main__":
-    # Chạy thread nhận dữ liệu từ ThingsBoard
     threading.Thread(target=thingsboard_ws_thread, daemon=True).start()
-    # Chạy Flask + SocketIO
     socketio.run(app, host='0.0.0.0', port=Config.SOCKETIO_PORT)

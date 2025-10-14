@@ -8,7 +8,7 @@ import platform
 import logging
 
 if platform.system() == 'Linux':
-    sys.path.insert(0, '/home/v005101/GPS_web_app')
+    sys.path.insert(0, '/home/ubuntu/Tracking-Position-')
     from lib_mock.GPIO import GPIO as GPIO
     import lib_mock.mock_serial as serial
 else:

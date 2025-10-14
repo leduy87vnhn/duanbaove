@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "express": "^5.1.0",
+    "rtsp-relay": "^1.9.0",
+    "ws": "^8.18.3"
+  }
+}
