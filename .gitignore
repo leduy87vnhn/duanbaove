@@ -1,2 +1,33 @@
-webrtc-rtsp
+# Thư mục Node.js
 Web_GPS/node_modules/
+
+# Thư mục WebRTC build
+webrtc-rtsp/
+
+# File build và dist (PyInstaller, Electron, v.v.)
+app/build/
+app/dist/
+
+# File binary lớn hoặc package
+*.pkg
+*.exe
+*.bin
+*.so
+
+# File Python tạm và cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Log và file tạm
+*.log
+*.tmp
+
+# Thư mục môi trường ảo
+.venv/
+env/
+venv/
+
+# File hệ thống
+.DS_Store
+Thumbs.db
