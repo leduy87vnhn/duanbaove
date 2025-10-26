@@ -5,11 +5,12 @@ import ReactPlayer from 'react-player';
 const MonitorVideo = () => {
   const [rtsp, setRtsp] = useState('');
 
-  useEffect(() => {
-    axios.get('http://localhost:8503/api/monitor/video')
-      .then(res => setRtsp(res.data.rtsp))
-      .catch(err => console.error(err));
-  }, []);
+    useEffect(() => {
+    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8503';
+    axios.get(`${apiUrl}/api/monitor/video`)
+        .then(res => setRtsp(res.data.rtsp))
+        .catch(err => console.error('API error:', err));
+    }, []);
 
   return (
     <div style={{ padding: '20px' }}>
