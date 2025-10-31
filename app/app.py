@@ -176,7 +176,7 @@ class RTSPThread(QThread):
                             consecutive_failures = 0
                             
                             try:
-                                # Convert BGR to RGB
+                        
                                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                                 h, w, ch = rgb_frame.shape
                                 
@@ -201,7 +201,6 @@ class RTSPThread(QThread):
                                 logger.error(f"Too many consecutive failures ({consecutive_failures}), reconnecting...")
                                 break
                         
-                        # Giảm CPU usage
                         time.sleep(0.033)  # ~30 FPS
                         
                     except Exception as e:
@@ -379,8 +378,8 @@ class GPSCameraApp(QMainWindow):
         # ===== CONFIG =====
         self.JWT_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ2dmFuaDIxMDIwM0BnbWFpbC5jb20iLCJ1c2VySWQiOiJiNWVmYjdmMC00YTJmLTExZjAtOTY2NC1mZjEzZWNjYjQ3ZmYiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6ImNmNmRhYTU0LTQzNGUtNDgzMC1hYjgyLTY5NjFjNmU2NzI1MSIsImV4cCI6MTc2MjE3ODQ4NCwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3NjAzNzg0ODQsImZpcnN0TmFtZSI6IkFuaCIsImxhc3ROYW1lIjoiVsWpIiwiZW5hYmxlZCI6dHJ1ZSwicHJpdmFjeVBvbGljeUFjY2VwdGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiYjVjMzUwYzAtNGEyZi0xMWYwLTk2NjQtZmYxM2VjY2I0N2ZmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.V1UF2qYI9R_ucDtcZglRcybLdbGKDhCkH_nQrduisaqJwWM-048TLvew9QgYV58dk5RCv7_1lxE8WeFfJnik3g"
         self.DEVICE_ID = "afe86c60-8f3c-11f0-a9b5-792e2194a5d4"
-        # self.RTSP_URL = "rtsp://admin:Abcd121%40@113.185.6.120:8554/Streaming/Channels/101"
-        self.RTSP_URL = "rtsp://admin:Abcd121%40@10.42.0.68:8554/Streaming/Channels/101"
+        self.RTSP_URL = "rtsp://admin:Abcd121%40@113.185.6.120:8554/Streaming/Channels/101"
+        # self.RTSP_URL = "rtsp://admin:Abcd121%40@10.42.0.68:8554/Streaming/Channels/101"
         self.VIETMAP_API_KEY = "2eada1a08ba9a656491f1e14cc0224ee5ea4d611c8adae41"
         
         self.current_lat = 21.028667
