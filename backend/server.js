@@ -3,13 +3,40 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import morgan from 'morgan';
 import { Client } from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import monitorRouter from './routers/monitorRouter.js';
+import streamRouter from './routers/streamRouter.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 const app = express();
-app.use(cors());
+
+// CORS configuration for external access
+app.use(cors({
+  origin: '*',  // Allow all origins (change to specific domains in production)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+}));
+
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Serve HLS static files
+app.use('/hls', express.static(path.join(__dirname, 'resources/hls'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.m3u8')) {
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    } else if (filePath.endsWith('.ts')) {
+      res.setHeader('Content-Type', 'video/mp2t');
+    }
+    // Allow CORS for streaming
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // DB connection
 const client = new Client({
@@ -25,7 +52,14 @@ client.connect()
 
 // Routers
 app.use('/api/monitor', monitorRouter);
+app.use('/api/stream', streamRouter);
 
 // Start server
 const PORT = process.env.PORT || 8503;
-app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));
+const HOST = process.env.HOST || '0.0.0.0';  // Listen on all interfaces for external access
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 Backend running on ${HOST}:${PORT}`);
+  console.log(`📺 Stream URL: http://localhost:${PORT}/hls/stream.m3u8`);
+  console.log(`🌐 API Docs: http://localhost:${PORT}/api/stream/status`);
+});

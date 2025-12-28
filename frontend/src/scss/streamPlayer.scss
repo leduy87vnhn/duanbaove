@@ -1,0 +1,177 @@
+.stream-player {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #1a1a1a;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stream-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #333;
+
+  h2 {
+    color: #fff;
+    margin: 0;
+    font-size: 24px;
+  }
+}
+
+.status-badge {
+  .badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 14px;
+
+    &.streaming {
+      background: #00ff00;
+      color: #000;
+    }
+
+    &.stopped {
+      background: #ff4444;
+      color: #fff;
+    }
+  }
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+
+  .video-player {
+    width: 100%;
+    height: auto;
+    min-height: 400px;
+    display: block;
+  }
+
+  .video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    font-size: 18px;
+    pointer-events: none;
+  }
+}
+
+.error-message {
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  background: #ff4444;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.stream-info {
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: #2a2a2a;
+  color: #ffa500;
+  border-radius: 6px;
+  border-left: 4px solid #ffa500;
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+.stream-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .btn {
+    flex: 1;
+    min-width: 150px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    &.btn-start {
+      background: #00cc00;
+      color: #fff;
+
+      &:not(:disabled):hover {
+        background: #00ff00;
+      }
+    }
+
+    &.btn-stop {
+      background: #ff4444;
+      color: #fff;
+
+      &:not(:disabled):hover {
+        background: #ff6666;
+      }
+    }
+
+    &.btn-refresh {
+      background: #4444ff;
+      color: #fff;
+
+      &:not(:disabled):hover {
+        background: #6666ff;
+      }
+    }
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .stream-player {
+    margin: 10px;
+    padding: 15px;
+  }
+
+  .stream-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+
+    h2 {
+      font-size: 20px;
+    }
+  }
+
+  .stream-controls {
+    flex-direction: column;
+
+    .btn {
+      width: 100%;
+    }
+  }
+}
