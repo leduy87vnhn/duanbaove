@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import morgan from 'morgan';
-import { Client } from 'pg';
+// import { Client } from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import monitorRouter from './routers/monitorRouter.js';
@@ -38,17 +38,17 @@ app.use('/hls', express.static(path.join(__dirname, 'resources/hls'), {
   }
 }));
 
-// DB connection
-const client = new Client({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-});
-client.connect()
-  .then(() => console.log('✅ Connected to PostgreSQL'))
-  .catch(err => console.error('❌ DB error', err));
+// DB connection (tạm thời không sử dụng)
+// const client = new Client({
+//   host: process.env.DB_HOST,
+//   port: process.env.DB_PORT,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME,
+// });
+// client.connect()
+//   .then(() => console.log('✅ Connected to PostgreSQL'))
+//   .catch(err => console.error('❌ DB error', err));
 
 // Routers
 app.use('/api/monitor', monitorRouter);
