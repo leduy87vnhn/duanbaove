@@ -20,6 +20,58 @@ if (!fs.existsSync(HLS_DIR)) {
 let streamProcess = null;
 let isStreaming = false;
 
+// Tự động start stream khi server khởi động
+export function autoStartStream() {
+  if (!isStreaming) {
+    // Gọi hàm startStream nhưng không cần req, res
+    try {
+      cleanHLSDirectory();
+      streamProcess = ffmpeg(RTSP_URL)
+        .inputOptions([
+          '-rtsp_transport', 'tcp',
+          '-analyzeduration', '10000000',
+          '-probesize', '10000000',
+          '-fflags', 'nobuffer',
+          '-flags', 'low_delay'
+        ])
+        .outputOptions([
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-f', 'hls',
+          '-hls_time', '4',
+          '-hls_list_size', '10',
+          '-hls_flags', 'delete_segments+append_list',
+          '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
+          '-hls_allow_cache', '1',
+          '-hls_segment_type', 'mpegts',
+          '-preset', 'ultrafast',
+          '-tune', 'zerolatency'
+        ])
+        .output(path.join(HLS_DIR, 'stream.m3u8'))
+        .on('start', (commandLine) => {
+          console.log('🎥 [AUTO] FFmpeg started:', commandLine);
+          isStreaming = true;
+        })
+        .on('error', (err, stdout, stderr) => {
+          console.error('❌ [AUTO] FFmpeg error:', err.message);
+          console.error('FFmpeg stderr:', stderr);
+          isStreaming = false;
+          streamProcess = null;
+        })
+        .on('end', () => {
+          console.log('✅ [AUTO] Stream ended');
+          isStreaming = false;
+          streamProcess = null;
+        });
+      streamProcess.run();
+      console.log('🚀 [AUTO] Stream started automatically');
+    } catch (error) {
+      console.error('❌ [AUTO] Error starting stream:', error);
+    }
+  }
+}
+
 /**
  * Start RTSP to HLS conversion with buffering
  */

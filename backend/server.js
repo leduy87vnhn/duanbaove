@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import monitorRouter from './routers/monitorRouter.js';
 import streamRouter from './routers/streamRouter.js';
+import { autoStartStream } from './controllers/streamController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,4 +63,6 @@ app.listen(PORT, HOST, () => {
   console.log(`🚀 Backend running on ${HOST}:${PORT}`);
   console.log(`📺 Stream URL: http://localhost:${PORT}/hls/stream.m3u8`);
   console.log(`🌐 API Docs: http://localhost:${PORT}/api/stream/status`);
+  // Tự động start stream khi server khởi động
+  autoStartStream();
 });
