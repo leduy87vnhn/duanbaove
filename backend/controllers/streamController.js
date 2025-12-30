@@ -6,8 +6,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+
 // RTSP stream URL
 const RTSP_URL = 'rtsp://admin:Abcd121%40@113.185.6.120:8554/Streaming/Channels/101';
+// Fallback video file (nên thay bằng file mp4 thực tế trong resources)
+const FALLBACK_VIDEO = path.join(__dirname, '../resources/fallback.mp4');
+
+// Loại nguồn hiện tại: 'rtsp' hoặc 'file'
+let currentSource = 'rtsp';
 
 // Directory to store HLS segments
 const HLS_DIR = path.join(__dirname, '../resources/hls');
@@ -20,55 +26,91 @@ if (!fs.existsSync(HLS_DIR)) {
 let streamProcess = null;
 let isStreaming = false;
 
+
+// Hàm start stream với nguồn chỉ định (rtsp hoặc file)
+function startStreamSource(source) {
+  let input, inputOpts;
+  if (source === 'rtsp') {
+    input = RTSP_URL;
+    inputOpts = [
+      '-rtsp_transport', 'tcp',
+      '-analyzeduration', '10000000',
+      '-probesize', '10000000',
+      '-fflags', 'nobuffer',
+      '-flags', 'low_delay'
+    ];
+  } else {
+    input = FALLBACK_VIDEO;
+    inputOpts = [];
+  }
+
+  cleanHLSDirectory();
+  streamProcess = ffmpeg(input)
+    .inputOptions(inputOpts)
+    .outputOptions([
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-f', 'hls',
+      '-hls_time', '4',
+      '-hls_list_size', '10',
+      '-hls_flags', 'delete_segments+append_list',
+      '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
+      '-hls_allow_cache', '1',
+      '-hls_segment_type', 'mpegts',
+      '-preset', 'ultrafast',
+      '-tune', 'zerolatency'
+    ])
+    .output(path.join(HLS_DIR, 'stream.m3u8'))
+    .on('start', (commandLine) => {
+      console.log(`🎥 [AUTO] FFmpeg started with source: ${source}`);
+      isStreaming = true;
+      currentSource = source;
+    })
+    .on('error', (err, stdout, stderr) => {
+      console.error(`❌ [AUTO] FFmpeg error with source ${source}:`, err.message);
+      console.error('FFmpeg stderr:', stderr);
+      isStreaming = false;
+      streamProcess = null;
+      // Nếu đang dùng RTSP thì fallback sang file
+      if (source === 'rtsp') {
+        setTimeout(() => {
+          console.log('🔄 [AUTO] Fallback to local video');
+          startStreamSource('file');
+        }, 1000);
+      }
+    })
+    .on('end', () => {
+      console.log(`✅ [AUTO] Stream ended for source: ${source}`);
+      isStreaming = false;
+      streamProcess = null;
+      // Nếu kết thúc bất thường, luôn fallback sang file
+      if (source === 'rtsp') {
+        setTimeout(() => {
+          startStreamSource('file');
+        }, 1000);
+      }
+    });
+  streamProcess.run();
+}
+
 // Tự động start stream khi server khởi động
 export function autoStartStream() {
   if (!isStreaming) {
-    // Gọi hàm startStream nhưng không cần req, res
     try {
-      cleanHLSDirectory();
-      streamProcess = ffmpeg(RTSP_URL)
-        .inputOptions([
-          '-rtsp_transport', 'tcp',
-          '-analyzeduration', '10000000',
-          '-probesize', '10000000',
-          '-fflags', 'nobuffer',
-          '-flags', 'low_delay'
-        ])
-        .outputOptions([
-          '-c:v', 'copy',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-f', 'hls',
-          '-hls_time', '4',
-          '-hls_list_size', '10',
-          '-hls_flags', 'delete_segments+append_list',
-          '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
-          '-hls_allow_cache', '1',
-          '-hls_segment_type', 'mpegts',
-          '-preset', 'ultrafast',
-          '-tune', 'zerolatency'
-        ])
-        .output(path.join(HLS_DIR, 'stream.m3u8'))
-        .on('start', (commandLine) => {
-          console.log('🎥 [AUTO] FFmpeg started:', commandLine);
-          isStreaming = true;
-        })
-        .on('error', (err, stdout, stderr) => {
-          console.error('❌ [AUTO] FFmpeg error:', err.message);
-          console.error('FFmpeg stderr:', stderr);
-          isStreaming = false;
-          streamProcess = null;
-        })
-        .on('end', () => {
-          console.log('✅ [AUTO] Stream ended');
-          isStreaming = false;
-          streamProcess = null;
-        });
-      streamProcess.run();
-      console.log('🚀 [AUTO] Stream started automatically');
+      startStreamSource('rtsp');
     } catch (error) {
       console.error('❌ [AUTO] Error starting stream:', error);
+      // Nếu lỗi thì fallback luôn
+      startStreamSource('file');
     }
+    // Định kỳ 15 phút thử lại RTSP nếu đang dùng file
+    setInterval(() => {
+      if (currentSource !== 'rtsp') {
+        console.log('🔄 [AUTO] Try to reconnect RTSP source...');
+        startStreamSource('rtsp');
+      }
+    }, 15 * 60 * 1000);
   }
 }
 
