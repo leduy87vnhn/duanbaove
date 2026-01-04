@@ -1,3 +1,79 @@
+/**
+ * Start stream trực tiếp từ fallback.mp4
+ */
+export const startFallbackStream = (req, res) => {
+  if (isStreaming) {
+    return res.json({
+      success: true,
+      message: 'Stream đã đang chạy',
+      streamUrl: '/hls/stream.m3u8',
+      note: 'Đang phát video mẫu fallback.mp4'
+    });
+  }
+
+  // Hàm phụ để start stream với nguồn chỉ định, trả về promise
+  function startStreamWithSource(source) {
+    return new Promise((resolve, reject) => {
+      let input, inputOpts;
+      input = FALLBACK_VIDEO;
+      inputOpts = [];
+      cleanHLSDirectory();
+      streamProcess = ffmpeg(input)
+        .inputOptions(inputOpts)
+        .outputOptions([
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-f', 'hls',
+          '-hls_time', '4',
+          '-hls_list_size', '10',
+          '-hls_flags', 'delete_segments+append_list',
+          '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
+          '-hls_allow_cache', '1',
+          '-hls_segment_type', 'mpegts',
+          '-preset', 'ultrafast',
+          '-tune', 'zerolatency'
+        ])
+        .output(path.join(HLS_DIR, 'stream.m3u8'))
+        .on('start', (commandLine) => {
+          console.log('🎥 [API] FFmpeg started with source: fallback');
+          isStreaming = true;
+          currentSource = 'file';
+        })
+        .on('error', (err, stdout, stderr) => {
+          console.error('❌ [API] FFmpeg error with fallback:', err.message);
+          console.error('FFmpeg stderr:', stderr);
+          isStreaming = false;
+          streamProcess = null;
+          reject(err);
+        })
+        .on('end', () => {
+          console.log('✅ [API] Stream ended for fallback');
+          isStreaming = false;
+          streamProcess = null;
+        });
+      streamProcess.run();
+      resolve();
+    });
+  }
+
+  startStreamWithSource('file')
+    .then(() => {
+      res.json({
+        success: true,
+        message: 'Stream đã được khởi động từ fallback.mp4',
+        streamUrl: '/hls/stream.m3u8',
+        note: 'Đang phát video mẫu fallback.mp4'
+      });
+    })
+    .catch((err) => {
+      res.status(500).json({
+        success: false,
+        message: 'Không thể khởi động stream từ fallback.mp4',
+        error: err.message
+      });
+    });
+};
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
