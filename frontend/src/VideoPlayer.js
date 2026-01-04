@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import Hls from 'hls.js';
 
-const VIDEO_URL = 'http://172.10.0.2:8503/hls/stream.m3u8';
+const VIDEO_URL = 'http://103.116.104.4:8503/hls/stream.m3u8';
 
 export default function VideoPlayer() {
   const videoRef = useRef();

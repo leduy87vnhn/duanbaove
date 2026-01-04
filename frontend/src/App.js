@@ -6,9 +6,9 @@ import MonitorVideo from './screens/MonitorVideo';
 function App() {
   return (
     <div className="App">
-      <VideoPlayer />
       <StreamControl />
       <MonitorVideo />
+      <VideoPlayer />
     </div>
   );
 }
