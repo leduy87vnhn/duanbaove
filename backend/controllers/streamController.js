@@ -1,4 +1,31 @@
 /**
+ * Stop fallback stream (dừng stream nếu đang phát fallback.mp4)
+ */
+export const stopFallbackStream = (req, res) => {
+  if (!isStreaming || currentSource !== 'file' || !streamProcess) {
+    return res.json({
+      success: false,
+      message: 'Fallback stream không đang chạy'
+    });
+  }
+  try {
+    streamProcess.kill('SIGKILL');
+    streamProcess = null;
+    isStreaming = false;
+    cleanHLSDirectory();
+    res.json({
+      success: true,
+      message: 'Fallback stream đã được dừng'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Không thể dừng fallback stream',
+      error: error && error.message ? error.message : 'Unknown error'
+    });
+  }
+};
+/**
  * Start stream trực tiếp từ fallback.mp4
  */
 export const startFallbackStream = (req, res) => {

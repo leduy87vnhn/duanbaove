@@ -4,7 +4,8 @@ import {
   startFallbackStream, 
   stopStream, 
   getStreamStatus, 
-  getRTSPLink 
+  getRTSPLink,
+  stopFallbackStream
 } from '../controllers/streamController.js';
 
 const router = express.Router();
@@ -22,5 +23,8 @@ router.get('/status', getStreamStatus);
 router.get('/info', getRTSPLink);
 
 router.post('/start-fallback', startFallbackStream);
+
+// Stop fallback stream
+router.post('/stop-fallback', stopFallbackStream);
 
 export default router;
