@@ -126,67 +126,93 @@ export const startStream = (req, res) => {
     });
   }
 
-  try {
-    // Clean up old segments
-    cleanHLSDirectory();
-
-    // Configure ffmpeg for RTSP to HLS conversion with buffering
-    streamProcess = ffmpeg(RTSP_URL)
-      .inputOptions([
-        '-rtsp_transport', 'tcp',  // Use TCP for more stable connection
-        '-analyzeduration', '10000000',  // Analyze for 10 seconds
-        '-probesize', '10000000',  // Probe 10MB
-        '-fflags', 'nobuffer',
-        '-flags', 'low_delay'
-      ])
-      .outputOptions([
-        '-c:v', 'copy',  // Copy video codec (no re-encoding for performance)
-        '-c:a', 'aac',   // Audio codec
-        '-b:a', '128k',  // Audio bitrate
-        '-f', 'hls',     // HLS format
-        '-hls_time', '4',  // 4 seconds per segment (good for buffering)
-        '-hls_list_size', '10',  // Keep 10 segments (40 seconds buffer)
-        '-hls_flags', 'delete_segments+append_list',  // Delete old segments
-        '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
-        '-hls_allow_cache', '1',  // Allow caching for better compatibility
-        '-hls_segment_type', 'mpegts',  // MPEG-TS for better Windows app support
-        '-preset', 'ultrafast',  // Fast encoding
-        '-tune', 'zerolatency'   // Low latency tuning
-      ])
-      .output(path.join(HLS_DIR, 'stream.m3u8'))
-      .on('start', (commandLine) => {
-        console.log('🎥 FFmpeg started:', commandLine);
-        isStreaming = true;
-      })
-      .on('error', (err, stdout, stderr) => {
-        console.error('❌ FFmpeg error:', err.message);
-        console.error('FFmpeg stderr:', stderr);
-        isStreaming = false;
-        streamProcess = null;
-      })
-      .on('end', () => {
-        console.log('✅ Stream ended');
-        isStreaming = false;
-        streamProcess = null;
-      });
-
-    streamProcess.run();
-
-    res.json({ 
-      success: true, 
-      message: 'Stream đã được khởi động',
-      streamUrl: '/hls/stream.m3u8',
-      note: 'Stream có delay 5-10 giây để buffer, giảm lag'
-    });
-
-  } catch (error) {
-    console.error('❌ Error starting stream:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Không thể khởi động stream',
-      error: error.message 
+  // Hàm phụ để start stream với nguồn chỉ định, trả về promise
+  function startStreamWithSource(source) {
+    return new Promise((resolve, reject) => {
+      let input, inputOpts;
+      if (source === 'rtsp') {
+        input = RTSP_URL;
+        inputOpts = [
+          '-rtsp_transport', 'tcp',
+          '-analyzeduration', '10000000',
+          '-probesize', '10000000',
+          '-fflags', 'nobuffer',
+          '-flags', 'low_delay'
+        ];
+      } else {
+        input = FALLBACK_VIDEO;
+        inputOpts = [];
+      }
+      cleanHLSDirectory();
+      streamProcess = ffmpeg(input)
+        .inputOptions(inputOpts)
+        .outputOptions([
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-f', 'hls',
+          '-hls_time', '4',
+          '-hls_list_size', '10',
+          '-hls_flags', 'delete_segments+append_list',
+          '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
+          '-hls_allow_cache', '1',
+          '-hls_segment_type', 'mpegts',
+          '-preset', 'ultrafast',
+          '-tune', 'zerolatency'
+        ])
+        .output(path.join(HLS_DIR, 'stream.m3u8'))
+        .on('start', (commandLine) => {
+          console.log(`🎥 [API] FFmpeg started with source: ${source}`);
+          isStreaming = true;
+          currentSource = source;
+        })
+        .on('error', (err, stdout, stderr) => {
+          console.error(`❌ [API] FFmpeg error with source ${source}:`, err.message);
+          console.error('FFmpeg stderr:', stderr);
+          isStreaming = false;
+          streamProcess = null;
+          reject(err);
+        })
+        .on('end', () => {
+          console.log(`✅ [API] Stream ended for source: ${source}`);
+          isStreaming = false;
+          streamProcess = null;
+        });
+      streamProcess.run();
+      // resolve ngay để trả về API, không chờ ffmpeg kết thúc
+      resolve();
     });
   }
+
+  // Thử RTSP, nếu lỗi thì fallback sang file
+  startStreamWithSource('rtsp')
+    .then(() => {
+      res.json({
+        success: true,
+        message: 'Stream đã được khởi động',
+        streamUrl: '/hls/stream.m3u8',
+        note: 'Stream có delay 5-10 giây để buffer, giảm lag'
+      });
+    })
+    .catch((err) => {
+      console.log('🔄 [API] Fallback to local video');
+      startStreamWithSource('file')
+        .then(() => {
+          res.json({
+            success: true,
+            message: 'Stream fallback sang video mẫu',
+            streamUrl: '/hls/stream.m3u8',
+            note: 'Đang phát video mẫu do không kết nối được camera'
+          });
+        })
+        .catch((err2) => {
+          res.status(500).json({
+            success: false,
+            message: 'Không thể khởi động stream (cả RTSP và fallback đều lỗi)',
+            error: err2.message
+          });
+        });
+    });
 };
 
 /**

@@ -43,13 +43,44 @@ npm start
 - Server sẽ chạy tại: `http://<IP_MAY_CHU>:8503`
 - Stream HLS: `http://<IP_MAY_CHU>:8503/hls/stream.m3u8`
 
-## 7. (Khuyến nghị) Chạy server bằng PM2 để tự động restart khi lỗi
+
+## 7. Chạy server ngầm bằng PM2 (Khuyến nghị)
+
+PM2 giúp service nodejs chạy ngầm, tự động restart khi lỗi, và tự khởi động lại khi reboot máy chủ.
+
+### Cài đặt PM2 (chỉ cần 1 lần)
 ```bash
 sudo npm install -g pm2
+```
+
+### Start service lần đầu
+```bash
+cd /path/to/duanbaove/backend
 pm2 start server.js --name stream-server
+```
+
+### Lưu cấu hình để tự động restart khi reboot
+```bash
 pm2 save
 pm2 startup
+# Làm theo hướng dẫn dòng lệnh sau khi chạy pm2 startup (chạy lệnh export hoặc sudo như hướng dẫn)
 ```
+
+### Các lệnh quản lý service
+- Xem trạng thái: `pm2 status`
+- Xem log: `pm2 logs stream-server`
+- Restart: `pm2 restart stream-server`
+- Stop: `pm2 stop stream-server`
+- Xóa khỏi pm2: `pm2 delete stream-server`
+
+### Kiểm tra service sau reboot
+Sau khi reboot máy chủ, service sẽ tự chạy lại. Kiểm tra bằng:
+```bash
+pm2 status
+pm2 logs stream-server
+```
+
+### Tham khảo thêm: https://pm2.keymetrics.io/
 
 ## 8. Test stream
 - Dùng VLC, browser, hoặc file test-stream.html
