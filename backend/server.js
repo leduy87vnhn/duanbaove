@@ -66,5 +66,5 @@ app.listen(PORT, HOST, () => {
   console.log(`🌐 API Docs: http://localhost:${PORT}/api/stream/status`);
   // Tự động start stream khi server khởi động
   //autoStartStream();
-  startFallbackStream();
+  //startFallbackStream();
 });
