@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import monitorRouter from './routers/monitorRouter.js';
 import streamRouter from './routers/streamRouter.js';
 import { autoStartStream } from './controllers/streamController.js';
+import { startFallbackStream } from './controllers/streamController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
