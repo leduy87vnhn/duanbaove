@@ -70,7 +70,7 @@ export const startFallbackStream = (req, res) => {
       res.status(500).json({
         success: false,
         message: 'Không thể khởi động stream từ fallback.mp4',
-        error: err.message
+        error: err && err.message ? err.message : 'Unknown error'
       });
     });
 };
