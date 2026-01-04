@@ -31,6 +31,8 @@ sudo ufw reload
 pm2 start server.js --name backend-monitor
 pm2 start "npx serve -s build -l 8504" --name frontend-monitor
 
+npm run build
+pm2 restart frontend-monitor
 
 pm2 start "ffmpeg -i rtsp://admin:Abcd121%40@113.185.6.120:8554/Streaming/Channels/101 -c:v libx264 -f flv -preset ultrafast -tune zerolatency rtmp://localhost/live/stream" --name camera-stream
 
