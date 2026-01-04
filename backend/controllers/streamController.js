@@ -16,7 +16,7 @@ export const startFallbackStream = (req, res) => {
     return new Promise((resolve, reject) => {
       let input, inputOpts;
       input = FALLBACK_VIDEO;
-      inputOpts = [];
+      inputOpts = ['-stream_loop', '-1'];
       cleanHLSDirectory();
       streamProcess = ffmpeg(input)
         .inputOptions(inputOpts)
