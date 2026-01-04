@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
-  startStream, 
+  startStream,
+  startFallbackStream, 
   stopStream, 
   getStreamStatus, 
   getRTSPLink 
@@ -19,5 +20,7 @@ router.get('/status', getStreamStatus);
 
 // Get RTSP link info
 router.get('/info', getRTSPLink);
+
+router.post('/start-fallback', startFallbackStream);
 
 export default router;
