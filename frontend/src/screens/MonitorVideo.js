@@ -20,24 +20,31 @@ const MonitorVideo = () => {
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
-      <h2>Camera Monitoring</h2>
-      {rtsp ? (
-        <ReactPlayer url={rtsp} controls playing />
-      ) : (
-        <p>Loading camera stream...</p>
-      )}
+      <h2 style={{ textAlign: 'center' }}>Camera Monitoring</h2>
       {(hlsPublic || rtspOut) && (
-        <div style={{ position: 'absolute', top: 10, right: 10, background: '#fff', padding: '10px 14px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: 13, zIndex: 10, minWidth: 280 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 18px auto',
+          background: '#fff',
+          padding: '12px 18px',
+          borderRadius: 8,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          fontSize: 15,
+          minWidth: 320,
+          maxWidth: 420
+        }}>
           {hlsPublic && <>
             <span style={{ fontWeight: 600 }}>Link VLC (public HLS):</span><br />
             <input
               type="text"
               value={hlsPublic}
               readOnly
-              style={{ width: 260, fontSize: 13, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', marginTop: 4, marginBottom: 8 }}
+              style={{ width: 320, fontSize: 14, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', marginTop: 4, marginBottom: 10 }}
               onFocus={e => e.target.select()}
             />
-            <br />
           </>}
           {rtspOut && <>
             <span style={{ fontWeight: 600 }}>Link RTSP (gốc):</span><br />
@@ -45,11 +52,16 @@ const MonitorVideo = () => {
               type="text"
               value={rtspOut}
               readOnly
-              style={{ width: 260, fontSize: 13, border: '1px solid #ccc', borderRadius: 4, padding: '2px 6px', marginTop: 4 }}
+              style={{ width: 320, fontSize: 14, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', marginTop: 4 }}
               onFocus={e => e.target.select()}
             />
           </>}
         </div>
+      )}
+      {rtsp ? (
+        <ReactPlayer url={rtsp} controls playing />
+      ) : (
+        <p style={{ textAlign: 'center' }}>Loading camera stream...</p>
       )}
     </div>
   );
