@@ -111,7 +111,7 @@ const __dirname = path.dirname(__filename);
 
 
 // RTSP stream URL
-const RTSP_URL = 'rtsp://admin:Abcd121%40@113.185.6.120:8554/Streaming/Channels/101';
+const RTSP_URL = 'rtsp://admin:Abcd121%40@113.185.6.120:554/Streaming/Channels/101';
 // Fallback video file (nên thay bằng file mp4 thực tế trong resources)
 const FALLBACK_VIDEO = path.join(__dirname, '../resources/fallback.mp4');
 
