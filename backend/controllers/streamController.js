@@ -229,12 +229,15 @@ export const startStream = (req, res) => {
     });
   }
 
+  // Lấy RTSP URL từ request body hoặc dùng mặc định
+  const rtspUrl = (req.body && req.body.rtspUrl) ? req.body.rtspUrl : RTSP_URL;
+
   // Hàm phụ để start stream với nguồn chỉ định, trả về promise
-  function startStreamWithSource(source) {
+  function startStreamWithSource(source, customRtspUrl = null) {
     return new Promise((resolve, reject) => {
       let input, inputOpts;
       if (source === 'rtsp') {
-        input = RTSP_URL;
+        input = customRtspUrl || RTSP_URL;
         inputOpts = [
           '-rtsp_transport', 'tcp',
           '-analyzeduration', '10000000',
@@ -266,6 +269,9 @@ export const startStream = (req, res) => {
         .output(path.join(HLS_DIR, 'stream.m3u8'))
         .on('start', (commandLine) => {
           console.log(`🎥 [API] FFmpeg started with source: ${source}`);
+          if (source === 'rtsp' && customRtspUrl) {
+            console.log(`📹 [API] Using custom RTSP URL: ${customRtspUrl}`);
+          }
           isStreaming = true;
           currentSource = source;
         })
@@ -288,7 +294,7 @@ export const startStream = (req, res) => {
   }
 
   // Thử RTSP, nếu lỗi thì fallback sang file
-  startStreamWithSource('rtsp')
+  startStreamWithSource('rtsp', rtspUrl)
     .then(() => {
       res.json({
         success: true,

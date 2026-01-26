@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactPlayer from 'react-player';
 
-const MonitorVideo = () => {
+const MonitorVideo = ({ onRtspUrlChange }) => {
   const [rtsp, setRtsp] = useState('');
   const [hlsPublic, setHlsPublic] = useState('');
   const [rtspOut, setRtspOut] = useState('');
@@ -13,10 +13,22 @@ const MonitorVideo = () => {
       .then(res => {
         setRtsp(res.data.hls_internal || '');
         setHlsPublic(res.data.hls_public || '');
-        setRtspOut(res.data.rtsp || '');
+        const rtspValue = res.data.rtsp || '';
+        setRtspOut(rtspValue);
+        if (onRtspUrlChange) {
+          onRtspUrlChange(rtspValue);
+        }
       })
       .catch(err => console.error('API error:', err));
-  }, []);
+  }, [onRtspUrlChange]);
+
+  const handleRtspChange = (e) => {
+    const newValue = e.target.value;
+    setRtspOut(newValue);
+    if (onRtspUrlChange) {
+      onRtspUrlChange(newValue);
+    }
+  };
 
   return (
     <div style={{ padding: '20px', position: 'relative' }}>
@@ -46,14 +58,15 @@ const MonitorVideo = () => {
               onFocus={e => e.target.select()}
             />
           </>}
-          {rtspOut && <>
+          {rtspOut !== null && <>
             <span style={{ fontWeight: 600 }}>Link RTSP (gốc):</span><br />
             <input
               type="text"
               value={rtspOut}
-              readOnly
+              onChange={handleRtspChange}
               style={{ width: 320, fontSize: 14, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', marginTop: 4 }}
               onFocus={e => e.target.select()}
+              placeholder="Nhập RTSP URL..."
             />
           </>}
         </div>

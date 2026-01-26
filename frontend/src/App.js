@@ -1,13 +1,15 @@
 import VideoPlayer from './VideoPlayer';
 import StreamControl from './StreamControl';
-import React from 'react';
+import React, { useState } from 'react';
 import MonitorVideo from './screens/MonitorVideo';
 
 function App() {
+  const [rtspUrl, setRtspUrl] = useState('');
+
   return (
     <div className="App">
-      <StreamControl />
-      <MonitorVideo />
+      <StreamControl rtspUrl={rtspUrl} />
+      <MonitorVideo onRtspUrlChange={setRtspUrl} />
       <VideoPlayer />
     </div>
   );
