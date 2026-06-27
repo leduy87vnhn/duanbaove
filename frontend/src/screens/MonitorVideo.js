@@ -49,7 +49,7 @@ const MonitorVideo = ({ onRtspUrlChange }) => {
           maxWidth: 420
         }}>
           {hlsPublic && <>
-            <span style={{ fontWeight: 600 }}>Link VLC (public HLS):</span><br />
+            <span style={{ fontWeight: 600 }}>Link VLC - stream server phat lai (public HLS):</span><br />
             <input
               type="text"
               value={hlsPublic}
@@ -72,7 +72,10 @@ const MonitorVideo = ({ onRtspUrlChange }) => {
         </div>
       )}
       {rtsp ? (
-        <ReactPlayer url={rtsp} controls playing />
+        <div>
+          <h3 style={{ textAlign: 'center', marginBottom: 8 }}>Preview stream server phat lai - HLS noi bo</h3>
+          <ReactPlayer url={rtsp} controls playing />
+        </div>
       ) : (
         <p style={{ textAlign: 'center' }}>Loading camera stream...</p>
       )}

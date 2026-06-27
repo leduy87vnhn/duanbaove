@@ -19,6 +19,7 @@ export default function VideoPlayer() {
 
   return (
     <div style={{ textAlign: 'center', margin: 24 }}>
+      <h3>Preview stream server phat lai - HLS public</h3>
       <video ref={videoRef} controls style={{ width: '100%', maxWidth: 800 }} />
     </div>
   );

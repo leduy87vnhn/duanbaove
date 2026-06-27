@@ -5,6 +5,7 @@ const API_BASE = 'http://172.10.0.2:8503/api/stream';
 export default function StreamControl({ rtspUrl }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rtspTransport, setRtspTransport] = useState('tcp');
 
   const callApi = async (endpoint, body = null) => {
     setLoading(true);
@@ -48,13 +49,39 @@ export default function StreamControl({ rtspUrl }) {
   };
 
   const handleStartRTSP = () => {
-    const body = (rtspUrl && rtspUrl.trim()) ? { rtspUrl: rtspUrl.trim() } : null;
+    const body = {
+      rtspTransport,
+      ...(rtspUrl && rtspUrl.trim() ? { rtspUrl: rtspUrl.trim() } : {})
+    };
     stopAndStart('start', body);
   };
 
   return (
     <div style={{ maxWidth: 400, margin: '40px auto', padding: 24, border: '1px solid #ccc', borderRadius: 8 }}>
       <h2>Stream Control</h2>
+      <div style={{ margin: '12px 8px', textAlign: 'left' }}>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>RTSP input transport</div>
+        <label style={{ marginRight: 16 }}>
+          <input
+            type="radio"
+            name="rtspTransport"
+            value="tcp"
+            checked={rtspTransport === 'tcp'}
+            onChange={(e) => setRtspTransport(e.target.value)}
+          />
+          TCP
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="rtspTransport"
+            value="udp"
+            checked={rtspTransport === 'udp'}
+            onChange={(e) => setRtspTransport(e.target.value)}
+          />
+          UDP
+        </label>
+      </div>
       <button onClick={handleStartRTSP} disabled={loading} style={{ margin: 8 }}>Start RTSP Stream</button>
       <button onClick={() => stopAndStart('start-fallback')} disabled={loading} style={{ margin: 8 }}>Start Fallback Stream</button>
       <button onClick={() => callApi('stop-fallback')} disabled={loading} style={{ margin: 8 }}>Stop Fallback Stream</button>

@@ -129,6 +129,10 @@ if (!fs.existsSync(HLS_DIR)) {
 let streamProcess = null;
 let isStreaming = false;
 
+function normalizeRtspTransport(value) {
+  return value === 'udp' ? 'udp' : 'tcp';
+}
+
 
 // Hàm start stream với nguồn chỉ định (rtsp hoặc file)
 function startStreamSource(source) {
@@ -231,6 +235,7 @@ export const startStream = (req, res) => {
 
   // Lấy RTSP URL từ request body hoặc dùng mặc định
   const rtspUrl = (req.body && req.body.rtspUrl) ? req.body.rtspUrl : RTSP_URL;
+  const rtspTransport = normalizeRtspTransport(req.body && req.body.rtspTransport);
 
   // Hàm phụ để start stream với nguồn chỉ định, trả về promise
   function startStreamWithSource(source, customRtspUrl = null) {
@@ -239,7 +244,7 @@ export const startStream = (req, res) => {
       if (source === 'rtsp') {
         input = customRtspUrl || RTSP_URL;
         inputOpts = [
-          '-rtsp_transport', 'tcp',
+          '-rtsp_transport', rtspTransport,
           '-analyzeduration', '10000000',
           '-probesize', '10000000',
           '-fflags', 'nobuffer',
@@ -269,6 +274,9 @@ export const startStream = (req, res) => {
         .output(path.join(HLS_DIR, 'stream.m3u8'))
         .on('start', (commandLine) => {
           console.log(`🎥 [API] FFmpeg started with source: ${source}`);
+          if (source === 'rtsp') {
+            console.log(`[API] RTSP input transport: ${rtspTransport}`);
+          }
           if (source === 'rtsp' && customRtspUrl) {
             console.log(`📹 [API] Using custom RTSP URL: ${customRtspUrl}`);
           }
@@ -300,6 +308,7 @@ export const startStream = (req, res) => {
         success: true,
         message: 'Stream đã được khởi động',
         streamUrl: '/hls/stream.m3u8',
+        rtspTransport,
         note: 'Stream có delay 5-10 giây để buffer, giảm lag'
       });
     })
@@ -311,6 +320,7 @@ export const startStream = (req, res) => {
             success: true,
             message: 'Stream fallback sang video mẫu',
             streamUrl: '/hls/stream.m3u8',
+            rtspTransport,
             note: 'Đang phát video mẫu do không kết nối được camera'
           });
         })
