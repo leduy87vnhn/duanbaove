@@ -6,6 +6,15 @@ export default function StreamControl({ rtspUrl }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [rtspTransport, setRtspTransport] = useState('tcp');
+  const [bufferSeconds, setBufferSeconds] = useState(20);
+
+  const bufferOptions = Array.from({ length: 20 }, (_, index) => {
+    const seconds = (index + 1) * 2;
+    return {
+      seconds,
+      hlsListSize: index + 1
+    };
+  });
 
   const callApi = async (endpoint, body = null) => {
     setLoading(true);
@@ -49,6 +58,7 @@ export default function StreamControl({ rtspUrl }) {
   const handleStartRTSP = () => {
     const body = {
       rtspTransport,
+      hlsListSize: bufferSeconds / 2,
       ...(rtspUrl && rtspUrl.trim() ? { rtspUrl: rtspUrl.trim() } : {})
     };
     stopAndStart('start', body);
@@ -61,21 +71,39 @@ export default function StreamControl({ rtspUrl }) {
           <p className="monitor-eyebrow">Stream operation</p>
           <h2>Stream Control</h2>
         </div>
-        <div className="transport-toggle" aria-label="RTSP input transport">
-          <button
-            type="button"
-            className={rtspTransport === 'tcp' ? 'active' : ''}
-            onClick={() => setRtspTransport('tcp')}
-          >
-            TCP
-          </button>
-          <button
-            type="button"
-            className={rtspTransport === 'udp' ? 'active' : ''}
-            onClick={() => setRtspTransport('udp')}
-          >
-            UDP
-          </button>
+        <div className="stream-settings">
+          <div className="setting-group">
+            <label>RTSP input</label>
+            <div className="transport-toggle" aria-label="RTSP input transport">
+              <button
+                type="button"
+                className={rtspTransport === 'tcp' ? 'active' : ''}
+                onClick={() => setRtspTransport('tcp')}
+              >
+                TCP
+              </button>
+              <button
+                type="button"
+                className={rtspTransport === 'udp' ? 'active' : ''}
+                onClick={() => setRtspTransport('udp')}
+              >
+                UDP
+              </button>
+            </div>
+          </div>
+          <div className="setting-group">
+            <label>Buffer HLS</label>
+            <select
+              value={bufferSeconds}
+              onChange={(e) => setBufferSeconds(Number(e.target.value))}
+            >
+              {bufferOptions.map(option => (
+                <option key={option.hlsListSize} value={option.seconds}>
+                  {option.seconds}s - list size {option.hlsListSize}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

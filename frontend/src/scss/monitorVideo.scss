@@ -50,6 +50,43 @@
   background: #0f172a;
 }
 
+.stream-settings {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.setting-group {
+  min-width: 148px;
+}
+
+.setting-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.setting-group select {
+  width: 190px;
+  height: 38px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+  padding: 0 10px;
+}
+
+.setting-group select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16);
+}
+
 .transport-toggle button {
   height: 38px;
   border: 0;
@@ -277,6 +314,16 @@
   }
 
   .transport-toggle {
+    width: 100%;
+  }
+
+  .stream-settings {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .setting-group,
+  .setting-group select {
     width: 100%;
   }
 

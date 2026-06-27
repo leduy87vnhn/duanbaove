@@ -111,7 +111,7 @@ const __dirname = path.dirname(__filename);
 
 
 // RTSP stream URL
-const RTSP_URL = 'rtsp://admin:Abcd121%40@113.185.6.120:554/Streaming/Channels/101';
+const RTSP_URL = 'rtsp://10.0.50.6:8554/camera';
 // Fallback video file (nên thay bằng file mp4 thực tế trong resources)
 const FALLBACK_VIDEO = path.join(__dirname, '../resources/fallback.mp4');
 
@@ -131,6 +131,15 @@ let isStreaming = false;
 
 function normalizeRtspTransport(value) {
   return value === 'udp' ? 'udp' : 'tcp';
+}
+
+function normalizeHlsListSize(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    return 10;
+  }
+
+  return Math.min(Math.max(parsed, 1), 20);
 }
 
 
@@ -236,6 +245,8 @@ export const startStream = (req, res) => {
   // Lấy RTSP URL từ request body hoặc dùng mặc định
   const rtspUrl = (req.body && req.body.rtspUrl) ? req.body.rtspUrl : RTSP_URL;
   const rtspTransport = normalizeRtspTransport(req.body && req.body.rtspTransport);
+  const hlsListSize = normalizeHlsListSize(req.body && req.body.hlsListSize);
+  const hlsBufferSeconds = hlsListSize * 2;
 
   // Hàm phụ để start stream với nguồn chỉ định, trả về promise
   function startStreamWithSource(source, customRtspUrl = null) {
@@ -263,7 +274,7 @@ export const startStream = (req, res) => {
           '-b:a', '128k',
           '-f', 'hls',
           '-hls_time', '2',
-          '-hls_list_size', '10',
+          '-hls_list_size', String(hlsListSize),
           '-hls_flags', 'delete_segments+append_list',
           '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),
           '-hls_allow_cache', '1',
@@ -276,6 +287,7 @@ export const startStream = (req, res) => {
           console.log(`🎥 [API] FFmpeg started with source: ${source}`);
           if (source === 'rtsp') {
             console.log(`[API] RTSP input transport: ${rtspTransport}`);
+            console.log(`[API] HLS buffer: ${hlsBufferSeconds}s (hls_time=2, hls_list_size=${hlsListSize})`);
           }
           if (source === 'rtsp' && customRtspUrl) {
             console.log(`📹 [API] Using custom RTSP URL: ${customRtspUrl}`);
@@ -309,7 +321,10 @@ export const startStream = (req, res) => {
         message: 'Stream đã được khởi động',
         streamUrl: '/hls/stream.m3u8',
         rtspTransport,
-        note: 'Stream có delay 5-10 giây để buffer, giảm lag'
+        hlsTime: 2,
+        hlsListSize,
+        hlsBufferSeconds,
+        note: `Stream co buffer HLS ${hlsBufferSeconds} giay de giam lag`
       });
     })
     .catch((err) => {
@@ -321,6 +336,9 @@ export const startStream = (req, res) => {
             message: 'Stream fallback sang video mẫu',
             streamUrl: '/hls/stream.m3u8',
             rtspTransport,
+            hlsTime: 2,
+            hlsListSize,
+            hlsBufferSeconds,
             note: 'Đang phát video mẫu do không kết nối được camera'
           });
         })
