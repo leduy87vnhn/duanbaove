@@ -76,14 +76,14 @@ URL: http://localhost:8503/hls/stream.m3u8
 2. **FFmpeg Processing**: 
    - Convert sang HLS format
    - Tạo các segment 4 giây/segment
-   - Giữ 10 segments = 40 giây buffer
+   - Giữ 10 segments = 20 giây buffer
 3. **HLS Output**: Phát qua HTTP, dễ xem trên web/mobile
 4. **Buffering**: Delay 5-10 giây nhưng stream mượt hơn rất nhiều
 
 ## Tối ưu:
 
-- **hls_time: 4 giây** - Mỗi segment 4 giây
-- **hls_list_size: 10** - Giữ 10 segments (40s buffer)
+- **hls_time: 2 giây** - Mỗi segment 2 giây
+- **hls_list_size: 10** - Giữ 10 segments (20s buffer)
 - **Copy video codec** - Không encode lại, nhanh hơn
 - **TCP transport** - Ổn định hơn UDP với mạng yếu
 

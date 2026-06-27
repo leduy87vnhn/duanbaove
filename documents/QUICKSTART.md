@@ -104,7 +104,7 @@ New-NetFirewallRule -DisplayName "Stream Server" -Direction Inbound -LocalPort 8
 ```
 
 ## Ưu điểm:
-- ✅ Buffer 40 giây → giảm lag
+- ✅ Buffer 20 giây → giảm lag
 - ✅ Delay 5-10 giây là acceptable
 - ✅ Hoạt động với mọi Windows app (VLC, C#, Python, etc.)
 - ✅ HTTP-based → dễ qua firewall

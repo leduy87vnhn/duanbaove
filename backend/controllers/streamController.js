@@ -262,7 +262,7 @@ export const startStream = (req, res) => {
           '-c:a', 'aac',
           '-b:a', '128k',
           '-f', 'hls',
-          '-hls_time', '4',
+          '-hls_time', '2',
           '-hls_list_size', '10',
           '-hls_flags', 'delete_segments+append_list',
           '-hls_segment_filename', path.join(HLS_DIR, 'segment_%03d.ts'),

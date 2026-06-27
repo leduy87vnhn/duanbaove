@@ -2,12 +2,25 @@
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #101820;
-  color: #f0f0f0;
+  min-width: 320px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+button,
+input {
+  font-family: inherit;
 }
 
 .App {
-  text-align: center;
-  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+@media (max-width: 640px) {
+  .App {
+    padding: 14px;
+  }
 }

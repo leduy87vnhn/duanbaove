@@ -3,20 +3,21 @@ import axios from 'axios';
 import ReactPlayer from 'react-player';
 
 const MonitorVideo = ({ onRtspUrlChange }) => {
-  const [rtsp, setRtsp] = useState('');
+  const [hlsInternal, setHlsInternal] = useState('');
   const [hlsPublic, setHlsPublic] = useState('');
-  const [rtspOut, setRtspOut] = useState('');
+  const [rtspInput, setRtspInput] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
     const apiUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8503';
     axios.get(`${apiUrl}/api/monitor/video`)
       .then(res => {
-        setRtsp(res.data.hls_internal || '');
+        const inputUrl = res.data.rtsp || '';
+        setHlsInternal(res.data.hls_internal || '');
         setHlsPublic(res.data.hls_public || '');
-        const rtspValue = res.data.rtsp || '';
-        setRtspOut(rtspValue);
+        setRtspInput(inputUrl);
         if (onRtspUrlChange) {
-          onRtspUrlChange(rtspValue);
+          onRtspUrlChange(inputUrl);
         }
       })
       .catch(err => console.error('API error:', err));
@@ -24,61 +25,109 @@ const MonitorVideo = ({ onRtspUrlChange }) => {
 
   const handleRtspChange = (e) => {
     const newValue = e.target.value;
-    setRtspOut(newValue);
+    setRtspInput(newValue);
     if (onRtspUrlChange) {
       onRtspUrlChange(newValue);
     }
   };
 
+  const copyToClipboard = async (value, label) => {
+    if (!value) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopyMessage(`Da copy ${label}`);
+    } catch (err) {
+      setCopyMessage(`Khong copy duoc ${label}`);
+    }
+  };
+
+  const renderPlayer = (url, loadingText) => (
+    <div className="player-frame">
+      {url ? (
+        <ReactPlayer url={url} controls playing width="100%" height="100%" />
+      ) : (
+        <p className="loading-text">{loadingText}</p>
+      )}
+    </div>
+  );
+
   return (
-    <div style={{ padding: '20px', position: 'relative' }}>
-      <h2 style={{ textAlign: 'center' }}>Camera Monitoring</h2>
-      {(hlsPublic || rtspOut) && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 18px auto',
-          background: '#fff',
-          padding: '12px 18px',
-          borderRadius: 8,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          fontSize: 15,
-          minWidth: 320,
-          maxWidth: 420
-        }}>
-          {hlsPublic && <>
-            <span style={{ fontWeight: 600 }}>Link VLC - stream server phat lai (public HLS):</span><br />
+    <div className="monitor-page">
+      <div className="monitor-header">
+        <div>
+          <p className="monitor-eyebrow">Live camera</p>
+          <h2>Camera Monitoring</h2>
+        </div>
+        <div className="monitor-status">Video out: HLS port 8503</div>
+      </div>
+
+      <div className="monitor-card monitor-links">
+        <div className="field-group">
+          <label>Video out cho VLC (server phat lai - public HLS)</label>
+          <div className="copy-row">
             <input
               type="text"
               value={hlsPublic}
               readOnly
-              style={{ width: 320, fontSize: 14, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', marginTop: 4, marginBottom: 10 }}
               onFocus={e => e.target.select()}
+              placeholder="Dang tai link video out..."
             />
-          </>}
-          {rtspOut !== null && <>
-            <span style={{ fontWeight: 600 }}>Link RTSP (gốc):</span><br />
-            <input
-              type="text"
-              value={rtspOut}
-              onChange={handleRtspChange}
-              style={{ width: 320, fontSize: 14, border: '1px solid #ccc', borderRadius: 4, padding: '4px 8px', marginTop: 4 }}
-              onFocus={e => e.target.select()}
-              placeholder="Nhập RTSP URL..."
-            />
-          </>}
+            <button type="button" className="btn-copy" onClick={() => copyToClipboard(hlsPublic, 'video out')}>
+              Copy
+            </button>
+          </div>
         </div>
-      )}
-      {rtsp ? (
-        <div>
-          <h3 style={{ textAlign: 'center', marginBottom: 8 }}>Preview stream server phat lai - HLS noi bo</h3>
-          <ReactPlayer url={rtsp} controls playing />
+
+        <div className="field-group">
+          <label>Nguon RTSP goc (input camera)</label>
+          <input
+            type="text"
+            value={rtspInput}
+            onChange={handleRtspChange}
+            onFocus={e => e.target.select()}
+            placeholder="Nhap RTSP URL..."
+          />
         </div>
-      ) : (
-        <p style={{ textAlign: 'center' }}>Loading camera stream...</p>
-      )}
+
+        {copyMessage && <div className="copy-message">{copyMessage}</div>}
+      </div>
+
+      <div className="video-preview-grid">
+        <div className="monitor-card video-card">
+          <div className="video-card-header">
+            <div>
+              <h3>Server stream noi bo</h3>
+              <p>{hlsInternal || 'Dang tai link noi bo...'}</p>
+            </div>
+            <span>Internal HLS</span>
+          </div>
+          {renderPlayer(hlsInternal, 'Loading internal stream...')}
+        </div>
+
+        <div className="monitor-card video-card">
+          <div className="video-card-header">
+            <div>
+              <h3>Server stream public</h3>
+              <p>{hlsPublic || 'Dang tai link public...'}</p>
+            </div>
+            <span>VLC output</span>
+          </div>
+          {renderPlayer(hlsPublic, 'Loading public stream...')}
+        </div>
+      </div>
     </div>
   );
 };

@@ -18,9 +18,9 @@ export default function StreamControl({ rtspUrl }) {
       };
       const res = await fetch(`${API_BASE}/${endpoint}`, options);
       const data = await res.json();
-      setMessage(data.message || (data.success ? 'Thành công' : 'Lỗi'));
+      setMessage(data.message || (data.success ? 'Thanh cong' : 'Loi'));
     } catch (err) {
-      setMessage('Lỗi kết nối API');
+      setMessage('Loi ket noi API');
     }
     setLoading(false);
   };
@@ -29,11 +29,9 @@ export default function StreamControl({ rtspUrl }) {
     setLoading(true);
     setMessage('');
     try {
-      // Dừng stream hiện tại trước
       await fetch(`${API_BASE}/stop`, { method: 'POST' });
-      // Đợi 500ms để đảm bảo stream đã dừng hoàn toàn
       await new Promise(resolve => setTimeout(resolve, 500));
-      // Khởi động stream mới
+
       const options = {
         method: 'POST',
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -41,9 +39,9 @@ export default function StreamControl({ rtspUrl }) {
       };
       const res = await fetch(`${API_BASE}/${endpoint}`, options);
       const data = await res.json();
-      setMessage(data.message || (data.success ? 'Thành công' : 'Lỗi'));
+      setMessage(data.message || (data.success ? 'Thanh cong' : 'Loi'));
     } catch (err) {
-      setMessage('Lỗi kết nối API');
+      setMessage('Loi ket noi API');
     }
     setLoading(false);
   };
@@ -57,36 +55,46 @@ export default function StreamControl({ rtspUrl }) {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: '40px auto', padding: 24, border: '1px solid #ccc', borderRadius: 8 }}>
-      <h2>Stream Control</h2>
-      <div style={{ margin: '12px 8px', textAlign: 'left' }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>RTSP input transport</div>
-        <label style={{ marginRight: 16 }}>
-          <input
-            type="radio"
-            name="rtspTransport"
-            value="tcp"
-            checked={rtspTransport === 'tcp'}
-            onChange={(e) => setRtspTransport(e.target.value)}
-          />
-          TCP
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="rtspTransport"
-            value="udp"
-            checked={rtspTransport === 'udp'}
-            onChange={(e) => setRtspTransport(e.target.value)}
-          />
-          UDP
-        </label>
+    <div className="stream-control-card">
+      <div className="control-header">
+        <div>
+          <p className="monitor-eyebrow">Stream operation</p>
+          <h2>Stream Control</h2>
+        </div>
+        <div className="transport-toggle" aria-label="RTSP input transport">
+          <button
+            type="button"
+            className={rtspTransport === 'tcp' ? 'active' : ''}
+            onClick={() => setRtspTransport('tcp')}
+          >
+            TCP
+          </button>
+          <button
+            type="button"
+            className={rtspTransport === 'udp' ? 'active' : ''}
+            onClick={() => setRtspTransport('udp')}
+          >
+            UDP
+          </button>
+        </div>
       </div>
-      <button onClick={handleStartRTSP} disabled={loading} style={{ margin: 8 }}>Start RTSP Stream</button>
-      <button onClick={() => stopAndStart('start-fallback')} disabled={loading} style={{ margin: 8 }}>Start Fallback Stream</button>
-      <button onClick={() => callApi('stop-fallback')} disabled={loading} style={{ margin: 8 }}>Stop Fallback Stream</button>
-      <button onClick={() => callApi('stop')} disabled={loading} style={{ margin: 8 }}>Stop Any Stream</button>
-      <div style={{ marginTop: 16, color: '#333' }}>{message}</div>
+
+      <div className="control-actions">
+        <button className="btn-action btn-primary" onClick={handleStartRTSP} disabled={loading}>
+          Start RTSP Stream
+        </button>
+        <button className="btn-action btn-secondary" onClick={() => stopAndStart('start-fallback')} disabled={loading}>
+          Start Fallback
+        </button>
+        <button className="btn-action btn-warning" onClick={() => callApi('stop-fallback')} disabled={loading}>
+          Stop Fallback
+        </button>
+        <button className="btn-action btn-danger" onClick={() => callApi('stop')} disabled={loading}>
+          Stop Stream
+        </button>
+      </div>
+
+      {message && <div className="control-message">{message}</div>}
     </div>
   );
 }
