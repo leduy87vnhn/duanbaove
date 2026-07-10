@@ -259,7 +259,12 @@ export const startStream = (req, res) => {
           '-analyzeduration', '10000000',
           '-probesize', '10000000',
           '-fflags', 'nobuffer',
-          '-flags', 'low_delay'
+          '-flags', 'low_delay',
+          // Tự động reconnect khi RTSP bị ngắt (MediaMTX timeout / camera drop)
+          '-reconnect', '1',
+          '-reconnect_at_eof', '1',
+          '-reconnect_streamed', '1',
+          '-reconnect_delay_max', '5'
         ];
       } else {
         input = FALLBACK_VIDEO;
@@ -300,12 +305,26 @@ export const startStream = (req, res) => {
           console.error('FFmpeg stderr:', stderr);
           isStreaming = false;
           streamProcess = null;
+          // Nếu RTSP lỗi thì tự restart sau 2 giây
+          if (source === 'rtsp') {
+            console.log('🔄 [API] RTSP error → auto-restart in 2s...');
+            setTimeout(() => {
+              if (!isStreaming) startStreamWithSource('rtsp', customRtspUrl);
+            }, 2000);
+          }
           reject(err);
         })
         .on('end', () => {
           console.log(`✅ [API] Stream ended for source: ${source}`);
           isStreaming = false;
           streamProcess = null;
+          // Nếu RTSP kết thúc bất ngờ thì tự restart
+          if (source === 'rtsp') {
+            console.log('🔄 [API] RTSP ended unexpectedly → auto-restart in 2s...');
+            setTimeout(() => {
+              if (!isStreaming) startStreamWithSource('rtsp', customRtspUrl);
+            }, 2000);
+          }
         });
       streamProcess.run();
       // resolve ngay để trả về API, không chờ ffmpeg kết thúc
