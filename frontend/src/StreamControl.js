@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const API_BASE = 'http://172.10.0.2:8503/api/stream';
+const API_BASE = 'http://103.116.104.4:8503/api/stream';
 
 export default function StreamControl({ rtspUrl }) {
   const [message, setMessage] = useState('');

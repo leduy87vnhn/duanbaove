@@ -142,6 +142,28 @@ function normalizeHlsListSize(value) {
   return Math.min(Math.max(parsed, 1), 20);
 }
 
+const HLS_START_TIMEOUT_MS = 20000;
+const HLS_READY_CHECK_INTERVAL_MS = 250;
+
+function isHlsOutputReady() {
+  const playlistPath = path.join(HLS_DIR, 'stream.m3u8');
+
+  if (!fs.existsSync(playlistPath) || fs.statSync(playlistPath).size === 0) {
+    return false;
+  }
+
+  const playlist = fs.readFileSync(playlistPath, 'utf8');
+  const segmentNames = playlist
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'));
+
+  return segmentNames.some(segmentName => {
+    const segmentPath = path.join(HLS_DIR, path.basename(segmentName));
+    return fs.existsSync(segmentPath) && fs.statSync(segmentPath).size > 0;
+  });
+}
+
 
 // Hàm start stream với nguồn chỉ định (rtsp hoặc file)
 function startStreamSource(source) {
@@ -235,6 +257,12 @@ export function autoStartStream() {
  */
 export const startStream = (req, res) => {
   if (isStreaming) {
+    if (!isHlsOutputReady()) {
+      return res.status(202).json({
+        success: false,
+        message: 'Stream đang khởi động, HLS chưa sẵn sàng'
+      });
+    }
     return res.json({ 
       success: true, 
       message: 'Stream đã đang chạy',
@@ -252,6 +280,35 @@ export const startStream = (req, res) => {
   function startStreamWithSource(source, customRtspUrl = null) {
     return new Promise((resolve, reject) => {
       let input, inputOpts;
+      let readyConfirmed = false;
+      let readyCheckInterval = null;
+      let readyTimeout = null;
+
+      const clearReadyChecks = () => {
+        if (readyCheckInterval) clearInterval(readyCheckInterval);
+        if (readyTimeout) clearTimeout(readyTimeout);
+        readyCheckInterval = null;
+        readyTimeout = null;
+      };
+
+      const confirmReady = () => {
+        if (readyConfirmed) return;
+        try {
+          if (!isHlsOutputReady()) return;
+          readyConfirmed = true;
+          clearReadyChecks();
+          resolve();
+        } catch (error) {
+          // FFmpeg may replace the playlist while this check is running.
+        }
+      };
+
+      const rejectBeforeReady = (error) => {
+        if (readyConfirmed) return;
+        clearReadyChecks();
+        reject(error);
+      };
+
       if (source === 'rtsp') {
         input = customRtspUrl || RTSP_URL;
         inputOpts = [
@@ -271,7 +328,7 @@ export const startStream = (req, res) => {
         inputOpts = [];
       }
       cleanHLSDirectory();
-      streamProcess = ffmpeg(input)
+      const command = ffmpeg(input)
         .inputOptions(inputOpts)
         .outputOptions([
           '-c:v', 'copy',
@@ -299,36 +356,50 @@ export const startStream = (req, res) => {
           }
           isStreaming = true;
           currentSource = source;
+          readyCheckInterval = setInterval(confirmReady, HLS_READY_CHECK_INTERVAL_MS);
+          readyTimeout = setTimeout(() => {
+            rejectBeforeReady(new Error(
+              `FFmpeg did not create a playable HLS stream within ${HLS_START_TIMEOUT_MS / 1000} seconds`
+            ));
+            command.kill('SIGKILL');
+          }, HLS_START_TIMEOUT_MS);
+          confirmReady();
         })
         .on('error', (err, stdout, stderr) => {
           console.error(`❌ [API] FFmpeg error with source ${source}:`, err.message);
           console.error('FFmpeg stderr:', stderr);
-          isStreaming = false;
-          streamProcess = null;
+          if (streamProcess === command) {
+            isStreaming = false;
+            streamProcess = null;
+          }
+          const shouldAutoRestart = readyConfirmed;
+          rejectBeforeReady(err);
           // Nếu RTSP lỗi thì tự restart sau 2 giây
-          if (source === 'rtsp') {
+          if (source === 'rtsp' && shouldAutoRestart) {
             console.log('🔄 [API] RTSP error → auto-restart in 2s...');
             setTimeout(() => {
               if (!isStreaming) startStreamWithSource('rtsp', customRtspUrl);
             }, 2000);
           }
-          reject(err);
         })
         .on('end', () => {
           console.log(`✅ [API] Stream ended for source: ${source}`);
-          isStreaming = false;
-          streamProcess = null;
+          if (streamProcess === command) {
+            isStreaming = false;
+            streamProcess = null;
+          }
+          const shouldAutoRestart = readyConfirmed;
+          rejectBeforeReady(new Error(`FFmpeg ended before the ${source} stream became ready`));
           // Nếu RTSP kết thúc bất ngờ thì tự restart
-          if (source === 'rtsp') {
+          if (source === 'rtsp' && shouldAutoRestart) {
             console.log('🔄 [API] RTSP ended unexpectedly → auto-restart in 2s...');
             setTimeout(() => {
               if (!isStreaming) startStreamWithSource('rtsp', customRtspUrl);
             }, 2000);
           }
         });
-      streamProcess.run();
-      // resolve ngay để trả về API, không chờ ffmpeg kết thúc
-      resolve();
+      streamProcess = command;
+      command.run();
     });
   }
 

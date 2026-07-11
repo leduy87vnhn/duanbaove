@@ -9,7 +9,7 @@ const MonitorVideo = ({ onRtspUrlChange }) => {
   const [copyMessage, setCopyMessage] = useState('');
 
   useEffect(() => {
-    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8503';
+    const apiUrl = process.env.REACT_APP_API_BASE_URL || 'http://103.116.104.4:8503';
     axios.get(`${apiUrl}/api/monitor/video`)
       .then(res => {
         const inputUrl = res.data.rtsp || '';
