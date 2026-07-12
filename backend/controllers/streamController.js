@@ -418,27 +418,13 @@ export const startStream = (req, res) => {
       });
     })
     .catch((err) => {
-      console.log('🔄 [API] Fallback to local video');
-      startStreamWithSource('file')
-        .then(() => {
-          res.json({
-            success: true,
-            message: 'Stream fallback sang video mẫu',
-            streamUrl: '/hls/stream.m3u8',
-            rtspTransport,
-            hlsTime: 2,
-            hlsListSize,
-            hlsBufferSeconds,
-            note: 'Đang phát video mẫu do không kết nối được camera'
-          });
-        })
-        .catch((err2) => {
-          res.status(500).json({
-            success: false,
-            message: 'Không thể khởi động stream (cả RTSP và fallback đều lỗi)',
-            error: err2.message
-          });
-        });
+      console.error('❌ [API] Could not start RTSP stream:', err.message);
+      res.status(502).json({
+        success: false,
+        message: 'Không thể kết nối hoặc tạo HLS từ nguồn RTSP',
+        error: err.message,
+        rtspTransport
+      });
     });
 };
 
