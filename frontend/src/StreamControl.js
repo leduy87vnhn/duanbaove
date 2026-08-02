@@ -61,8 +61,7 @@ export default function StreamControl({ rtspUrl }) {
       hlsListSize: bufferSeconds / 2,
       ...(rtspUrl && rtspUrl.trim() ? { rtspUrl: rtspUrl.trim() } : {})
     };
-    // stopAndStart('start', body);
-    callApi('start', body);
+    stopAndStart('start', body);
   };
 
   return (
@@ -112,7 +111,7 @@ export default function StreamControl({ rtspUrl }) {
         <button className="btn-action btn-primary" onClick={handleStartRTSP} disabled={loading}>
           Start RTSP Stream
         </button>
-        <button className="btn-action btn-secondary" onClick={() => callApi('start-fallback')} disabled={loading}>
+        <button className="btn-action btn-secondary" onClick={() => stopAndStart('start-fallback')} disabled={loading}>
           Start Fallback
         </button>
         <button className="btn-action btn-warning" onClick={() => callApi('stop-fallback')} disabled={loading}>
